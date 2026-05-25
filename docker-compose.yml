@@ -12,3 +12,11 @@ services:
       - "7474:7474"
       - "7687:7687"
     restart: always
+  api:
+    build: .
+    container_name: fastapi-api
+    environment:
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    restart: "no"
