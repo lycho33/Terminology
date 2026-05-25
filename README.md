@@ -6,7 +6,6 @@
 
 ### Access DB
 
-[Aura Console](https://console.neo4j.io/ce)
 [Locally](http://localhost:7474/browser/)
 
 ### Running the containers
@@ -17,6 +16,6 @@
 
 http://0.0.0.0:8000
 
-### API Docs
+### API Docs (Swagger)
 
 http://0.0.0.0:8000/docs
