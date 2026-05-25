@@ -2,10 +2,12 @@
 
 - Neo4j
 - FastApi
+- Neontology
 
 ### Access DB
 
 [Aura Console](https://console.neo4j.io/ce)
+[Locally](http://localhost:7474/browser/)
 
 ### Running the containers
 
