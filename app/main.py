@@ -1,11 +1,26 @@
-from fastapi import FastAPI, status
+from fastapi import FastAPI, HTTPException, status
 from typing import Optional
 from neontology import init_neontology, Neo4jConfig, GraphConnection
 from .config import settings
 from .nodes import TermNode
 from .models import Term, UpdateTermRequest
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Allow CORS
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def startup_event():
@@ -23,8 +38,11 @@ def read_root():
 
 # -------------------------------------------------------------------------------
 @app.get("/terms/{term_name}")
-def get_term(term_name: str) -> Optional[TermNode]:
-    return TermNode.match(term_name)
+def get_term(term_name: str):
+    term = TermNode.match(term_name.capitalize())
+    if term is None:
+        raise HTTPException(status_code=404, detail="Term not found")
+    return {"term": term}
 
 @app.post("/terms/", status_code=status.HTTP_201_CREATED)
 def create_term(term: Term): # Fix this????
