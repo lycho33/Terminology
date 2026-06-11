@@ -6,3 +6,8 @@
 # Docker
 Dockerfile
 docker-compose.yml
+
+# React
+/frontend/node_modules
+/frontend/build
+/frontend/dist

@@ -9,5 +9,10 @@ export default defineConfig({
       origin:
         /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/,
     },
+    host: true,
+    port: 3030,
+    watch: {
+      usePolling: true, // Fixes hot-reload issues in Docker containers
+    },
   },
 });

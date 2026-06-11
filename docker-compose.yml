@@ -34,3 +34,18 @@ services:
       - "8000:8000"
     restart: "no"
     env_file: ".env"
+  web-app:
+    depends_on:
+      api:
+        condition: service_started
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: react_dev_container
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./frontend:/app # Hot-reloads changes by syncing your local folder to /app
+      - /app/node_modules # Keeps node_modules inside Docker instead of replacing it with /frontend/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true

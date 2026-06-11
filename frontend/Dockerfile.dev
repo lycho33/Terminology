@@ -1,0 +1,14 @@
+# Web App
+FROM node:lts-alpine 
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+# Expose the default Vite port
+EXPOSE 3030
+
+# Expose the server outside of the isolated Docker environment 
+# so you can access your app from your host machine browser
+# tell Vite to listen on 0.0.0.0
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

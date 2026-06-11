@@ -7,6 +7,7 @@ import {
 
 const queryClient = new QueryClient();
 
+// https://react.dev/learn/build-a-react-app-from-scratch#data-fetching
 function App() {
   return (
     <>
@@ -20,6 +21,7 @@ function App() {
   );
 }
 
+// https://tanstack.com/query/latest/docs/framework/react/quick-start
 const getTerm = async () => {
   const response = await fetch("http://localhost:8000/terms/container");
   const terms = await response.json(); // {"term":{"name":"Container"}}

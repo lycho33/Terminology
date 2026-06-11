@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Allow CORS
+# Allow [CORS](https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
