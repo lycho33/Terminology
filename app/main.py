@@ -46,7 +46,7 @@ def get_term(term_name: str):
 
 @app.post("/terms/", status_code=status.HTTP_201_CREATED)
 def create_term(term: Term): # Fix this????
-    new_term = TermNode(name=term.name)
+    new_term = TermNode(name=term.name.capitalize())
     new_term.create()
     return new_term
 
@@ -59,7 +59,7 @@ def update_term(request: UpdateTermRequest):
     SET t.name = $updated_term_name
     RETURN t.name
     """
-    res = gc.evaluate_query(patch_query, {"curr_term_name": request.current_name, "updated_term_name": request.updated_name})
+    res = gc.evaluate_query(patch_query, {"curr_term_name": request.current_name.capitalize(), "updated_term_name": request.updated_name.capitalize()})
     return {"name": request.updated_name, "result": res}
 
 @app.delete("/terms/{term_name}")
