@@ -30,7 +30,7 @@ const useUpdateTerm = () => {
 
 export const Data = ({ termName }: DataProps) => {
   const { data, isError, isLoading } = useFetchTerm(termName);
-  const { mutate: updateTerm } = useUpdateTerm();
+  const { mutate: updateTerm, isSuccess } = useUpdateTerm();
 
   if (isLoading) {
     return <TermCardSkeleton />;
@@ -50,5 +50,7 @@ export const Data = ({ termName }: DataProps) => {
     return null;
   }
 
-  return <TermCard term={data} updateTerm={updateTerm} />;
+  return (
+    <TermCard term={data} updateTerm={updateTerm} updateStatus={isSuccess} />
+  );
 };

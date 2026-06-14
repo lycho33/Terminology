@@ -14,6 +14,7 @@ export type Term = {
 type TermCardProps = {
   term: Term;
   updateTerm: (termInputs: UpdateTermInput) => void;
+  updateStatus: boolean;
 };
 type UpdateFormProps = {
   term: Term;
@@ -103,7 +104,7 @@ const UpdateTermForm = ({ term, onEditMode, updateTerm }: UpdateFormProps) => {
   );
 };
 
-export const TermCard = ({ term, updateTerm }: TermCardProps) => {
+export const TermCard = ({ term, updateTerm, updateStatus }: TermCardProps) => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
 
   const handleEdit = () => {
@@ -117,7 +118,7 @@ export const TermCard = ({ term, updateTerm }: TermCardProps) => {
         <span>Glossary</span>
       </div>
       <div className="term-card__title-row">
-        {!isEdit ? (
+        {!isEdit || updateStatus ? (
           <>
             <h2>{term.name}</h2>
             <MdOutlineEdit
