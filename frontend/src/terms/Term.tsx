@@ -1,26 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
-import type { UpdateTermInput } from "./Data";
-
-type TermFormProps = {
-  defaultTerm: string;
-  onSearch: (term: string) => void;
-};
-export type Term = {
-  name: string;
-  definition?: string;
-};
-type TermCardProps = {
-  term: Term;
-  updateTerm: (termInputs: UpdateTermInput) => void;
-  updateStatus: boolean;
-};
-type UpdateFormProps = {
-  term: Term;
-  onEditMode: (isEdit: boolean) => void;
-  updateTerm: (termInputs: UpdateTermInput) => void;
-};
+import type { TermFormProps, UpdateFormProps, TermCardProps } from "./types";
 
 export const TermForm = ({ defaultTerm, onSearch }: TermFormProps) => {
   const [term, setTerm] = useState(defaultTerm);
@@ -35,6 +16,7 @@ export const TermForm = ({ defaultTerm, onSearch }: TermFormProps) => {
 
     if (nextTerm) {
       onSearch(nextTerm);
+      setTerm("");
     }
   };
 
@@ -48,7 +30,7 @@ export const TermForm = ({ defaultTerm, onSearch }: TermFormProps) => {
           name="term"
           value={term}
           onChange={handleChange}
-          placeholder="container"
+          placeholder="Docker"
         />
         <button type="submit">Search</button>
       </div>

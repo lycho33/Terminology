@@ -3,8 +3,9 @@ import {
   useQuery,
   type QueryObserverResult,
 } from "@tanstack/react-query";
-import { TermCard, TermCardSkeleton, type Term } from "./Term";
 import { getTerm, updateTerm } from "./actions";
+import { TermCard, TermCardSkeleton } from "./terms/Term";
+import type { Term } from "./terms/types";
 
 type DataProps = {
   termName: string;

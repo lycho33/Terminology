@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import "./App.css";
-import { TermForm } from "./Term";
+import { TermForm } from "./terms/Term";
 import { Data } from "./Data";
 
 const queryClient = new QueryClient();

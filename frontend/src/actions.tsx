@@ -1,5 +1,5 @@
 import type { UpdateTermInput } from "./Data";
-import type { Term } from "./Term";
+import type { Term } from "./terms/types";
 
 type TermResponse = {
   term: Term;
