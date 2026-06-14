@@ -10,8 +10,8 @@ app = FastAPI()
 
 # Allow [CORS](https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware)
 origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "http://localhost:3030",
+    "http://127.0.0.1:3030",
 ]
 
 app.add_middleware(
@@ -41,7 +41,7 @@ def read_root():
 def get_term(term_name: str):
     term = TermNode.match(term_name.capitalize())
     if term is None:
-        raise HTTPException(status_code=404, detail="Term not found")
+        raise HTTPException(status_code=404, detail="😓 Term not found")
     return {"term": term}
 
 @app.post("/terms/", status_code=status.HTTP_201_CREATED)
