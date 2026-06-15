@@ -9,13 +9,6 @@ type TermResponse = {
 export const getTerm = async (termName: string): Promise<Term> => {
   const response = await fetch(
     `http://localhost:8000/terms/${encodeURIComponent(termName)}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json", // Set your desired content type
-        Accept: "application/json", // Often paired with GET requests
-      },
-    },
   );
 
   if (!response.ok) {
@@ -23,6 +16,26 @@ export const getTerm = async (termName: string): Promise<Term> => {
   }
 
   const terms: TermResponse = await response.json();
+  return terms.term;
+};
+
+export const createTerm = async (termName: string): Promise<Term> => {
+  const response = await fetch(`http://localhost:8000/terms/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: termName,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Network response was not ok for POST term");
+  }
+
+  const terms: TermResponse = await response.json(); // Update this
+
   return terms.term;
 };
 
@@ -41,10 +54,10 @@ export const updateTerm = async (
   });
 
   if (!response.ok) {
-    throw new Error("Network response was not ok for POST term");
+    throw new Error("Network response was not ok for PATCH term");
   }
 
-  const terms: TermResponse = await response.json();
+  const terms: TermResponse = await response.json(); // Update this
 
   return terms.term;
 };

@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import "./App.css";
-import { TermForm } from "./terms/Term";
+import { TermSearchForm } from "./terms/Term";
 import { Data } from "./Data";
 
 const queryClient = new QueryClient();
 
 // https://react.dev/learn/build-a-react-app-from-scratch#data-fetching
 function App() {
-  const [termName, setTermName] = useState("Docker");
+  const [termName, setTermName] = useState("");
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -19,8 +19,8 @@ function App() {
             <h1>Term Card</h1>
           </div>
 
-          <TermForm onSearch={setTermName} defaultTerm={termName} />
-          <Data termName={termName} />
+          <TermSearchForm onSearch={setTermName} defaultTerm={termName} />
+          <Data termName={termName} setTerm={setTermName} />
         </section>
       </main>
     </QueryClientProvider>

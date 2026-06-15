@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
-import type { TermFormProps, UpdateFormProps, TermCardProps } from "./types";
+import type {
+  TermFormProps,
+  UpdateFormProps,
+  TermCardProps,
+  CreateFormProps,
+} from "./types";
 
-export const TermForm = ({ defaultTerm, onSearch }: TermFormProps) => {
+export const TermSearchForm = ({ defaultTerm, onSearch }: TermFormProps) => {
   const [term, setTerm] = useState(defaultTerm);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,10 +35,44 @@ export const TermForm = ({ defaultTerm, onSearch }: TermFormProps) => {
           name="term"
           value={term}
           onChange={handleChange}
-          placeholder="Docker"
+          placeholder="Term"
         />
         <button type="submit">Search</button>
       </div>
+    </form>
+  );
+};
+
+export const CreateTermForm = ({ createTerm, setTerm }: CreateFormProps) => {
+  const [newTerm, setNewTerm] = useState<string>("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTerm(e.target.value);
+  };
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const nextTerm = newTerm.trim();
+
+    if (nextTerm) {
+      createTerm(nextTerm);
+      setTerm(nextTerm);
+    }
+  };
+
+  return (
+    <form className="term-card__update-form" onSubmit={handleSubmit}>
+      <input
+        className="term-card__update-input"
+        id="term"
+        type="text"
+        name="term"
+        value={newTerm}
+        onChange={handleChange}
+        placeholder="create term"
+      />
+      <button className="term-card__update-button" type="submit">
+        Create
+      </button>
     </form>
   );
 };

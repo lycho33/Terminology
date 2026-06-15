@@ -1,4 +1,4 @@
-import type { UpdateTermInput } from "../Data";
+import type { UpdateTermInput } from "../hooks";
 
 export type TermFormProps = {
   defaultTerm: string;
@@ -17,4 +17,9 @@ export type UpdateFormProps = {
   term: Term;
   onEditMode: (isEdit: boolean) => void;
   updateTerm: (termInputs: UpdateTermInput) => void;
+};
+
+export type CreateFormProps = {
+  createTerm: (newTerm: string) => void;
+  setTerm: (term: string) => void;
 };

@@ -1,37 +1,29 @@
-import {
-  useMutation,
-  useQuery,
-  type QueryObserverResult,
-} from "@tanstack/react-query";
-import { getTerm, updateTerm } from "./actions";
-import { TermCard, TermCardSkeleton } from "./terms/Term";
-import type { Term } from "./terms/types";
+import { useCreateTerm, useFetchTerm, useUpdateTerm } from "./hooks";
+import { CreateTermForm, TermCard, TermCardSkeleton } from "./terms/Term";
 
 type DataProps = {
   termName: string;
+  setTerm: (term: string) => void;
 };
 
-const useFetchTerm = (termName: string): QueryObserverResult<Term, unknown> => {
-  return useQuery({
-    queryKey: ["terms", termName],
-    queryFn: () => getTerm(termName),
-  });
-};
+export const Data = ({ termName, setTerm }: DataProps) => {
+  const {
+    data,
+    isError,
+    isLoading,
+    isSuccess: isFetchTermSuccess,
+  } = useFetchTerm(termName);
+  const { mutate: updateTerm, isSuccess: isUpdateSuccess } = useUpdateTerm();
+  const { mutate: createTerm, submittedAt } = useCreateTerm();
 
-export type UpdateTermInput = {
-  term: string;
-  newTerm: string;
-};
-
-const useUpdateTerm = () => {
-  return useMutation({
-    mutationFn: (terms: UpdateTermInput) => updateTerm(terms),
-  });
-};
-
-export const Data = ({ termName }: DataProps) => {
-  const { data, isError, isLoading } = useFetchTerm(termName);
-  const { mutate: updateTerm, isSuccess } = useUpdateTerm();
+  if (termName.length == 0 && !submittedAt) {
+    return (
+      <div className="term-card term-card--empty" role="status">
+        <p className="eyebrow">Create a Term</p>
+        <CreateTermForm createTerm={createTerm} setTerm={setTerm} />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <TermCardSkeleton />;
@@ -47,11 +39,13 @@ export const Data = ({ termName }: DataProps) => {
     );
   }
 
-  if (!data) {
-    return null;
-  }
-
   return (
-    <TermCard term={data} updateTerm={updateTerm} updateStatus={isSuccess} />
+    isFetchTermSuccess && (
+      <TermCard
+        term={data}
+        updateTerm={updateTerm}
+        updateStatus={isUpdateSuccess}
+      />
+    )
   );
 };
