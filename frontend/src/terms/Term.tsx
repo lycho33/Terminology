@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MdOutlineEdit } from "react-icons/md";
+import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
 import type {
   TermFormProps,
@@ -8,7 +8,11 @@ import type {
   CreateFormProps,
 } from "./types";
 
-export const TermSearchForm = ({ defaultTerm, onSearch }: TermFormProps) => {
+export const TermSearchForm = ({
+  defaultTerm,
+  onCreateClick,
+  onSearch,
+}: TermFormProps) => {
   const [term, setTerm] = useState(defaultTerm);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,12 +42,24 @@ export const TermSearchForm = ({ defaultTerm, onSearch }: TermFormProps) => {
           placeholder="Term"
         />
         <button type="submit">Search</button>
+        <button
+          aria-label="Create term"
+          className="term-search__create-button"
+          type="button"
+          onClick={onCreateClick}
+        >
+          <MdAdd aria-hidden="true" />
+        </button>
       </div>
     </form>
   );
 };
 
-export const CreateTermForm = ({ createTerm, setTerm }: CreateFormProps) => {
+export const CreateTermForm = ({
+  createTerm,
+  onCreateComplete,
+  setTerm,
+}: CreateFormProps) => {
   const [newTerm, setNewTerm] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,6 +72,7 @@ export const CreateTermForm = ({ createTerm, setTerm }: CreateFormProps) => {
     if (nextTerm) {
       createTerm(nextTerm);
       setTerm(nextTerm);
+      onCreateComplete();
     }
   };
 

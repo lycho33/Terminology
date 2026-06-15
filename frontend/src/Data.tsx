@@ -2,11 +2,18 @@ import { useCreateTerm, useFetchTerm, useUpdateTerm } from "./hooks";
 import { CreateTermForm, TermCard, TermCardSkeleton } from "./terms/Term";
 
 type DataProps = {
+  isCreating: boolean;
+  onCreateComplete: () => void;
   termName: string;
   setTerm: (term: string) => void;
 };
 
-export const Data = ({ termName, setTerm }: DataProps) => {
+export const Data = ({
+  isCreating,
+  onCreateComplete,
+  termName,
+  setTerm,
+}: DataProps) => {
   const {
     data,
     isError,
@@ -14,15 +21,23 @@ export const Data = ({ termName, setTerm }: DataProps) => {
     isSuccess: isFetchTermSuccess,
   } = useFetchTerm(termName);
   const { mutate: updateTerm, isSuccess: isUpdateSuccess } = useUpdateTerm();
-  const { mutate: createTerm, submittedAt } = useCreateTerm();
+  const { mutate: createTerm } = useCreateTerm();
 
-  if (termName.length == 0 && !submittedAt) {
+  if (isCreating) {
     return (
       <div className="term-card term-card--empty" role="status">
         <p className="eyebrow">Create a Term</p>
-        <CreateTermForm createTerm={createTerm} setTerm={setTerm} />
+        <CreateTermForm
+          createTerm={createTerm}
+          onCreateComplete={onCreateComplete}
+          setTerm={setTerm}
+        />
       </div>
     );
+  }
+
+  if (termName.length == 0) {
+    return null;
   }
 
   if (isLoading) {

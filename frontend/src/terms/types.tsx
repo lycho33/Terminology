@@ -2,6 +2,7 @@ import type { UpdateTermInput } from "../hooks";
 
 export type TermFormProps = {
   defaultTerm: string;
+  onCreateClick: () => void;
   onSearch: (term: string) => void;
 };
 export type Term = {
@@ -21,5 +22,6 @@ export type UpdateFormProps = {
 
 export type CreateFormProps = {
   createTerm: (newTerm: string) => void;
+  onCreateComplete: () => void;
   setTerm: (term: string) => void;
 };

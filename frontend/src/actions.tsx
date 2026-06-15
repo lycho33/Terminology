@@ -1,4 +1,4 @@
-import type { UpdateTermInput } from "./Data";
+import type { UpdateTermInput } from "./hooks";
 import type { Term } from "./terms/types";
 
 type TermResponse = {

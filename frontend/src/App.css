@@ -49,6 +49,7 @@
 
 .term-search__controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -75,6 +76,27 @@
   cursor: pointer;
   font-weight: 700;
   padding: 0 18px;
+}
+
+.term-search .term-search__create-button {
+  align-items: center;
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+  display: inline-flex;
+  flex: 0 0 44px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}
+
+.term-search .term-search__create-button:hover {
+  background: var(--accent-bg);
+}
+
+.term-search__create-button svg {
+  height: 1.25rem;
+  width: 1.25rem;
 }
 
 .term-search input:focus-visible,
@@ -257,14 +279,21 @@
 }
 
 @media (max-width: 640px) {
-  .term-search__controls,
   .term-card__topline,
   .term-card__meta {
     flex-direction: column;
   }
 
+  .term-search input {
+    flex-basis: 100%;
+  }
+
   .term-search button {
-    width: 100%;
+    flex: 1;
+  }
+
+  .term-search .term-search__create-button {
+    flex: 0 0 44px;
   }
 
   .term-card {
