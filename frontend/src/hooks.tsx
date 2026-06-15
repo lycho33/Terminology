@@ -12,7 +12,7 @@ export const useFetchTerm = (
   return useQuery({
     queryKey: ["terms", termName],
     queryFn: () => getTerm(termName),
-    staleTime: Infinity,
+    staleTime: 60 * 1000,
     enabled: termName.length > 0,
   });
 };

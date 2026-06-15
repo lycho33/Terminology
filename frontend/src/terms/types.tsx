@@ -13,11 +13,13 @@ export type TermCardProps = {
   term: Term;
   updateTerm: (termInputs: UpdateTermInput) => void;
   updateStatus: boolean;
+  setTerm: (term: string) => void;
 };
 export type UpdateFormProps = {
   term: Term;
   onEditMode: (isEdit: boolean) => void;
   updateTerm: (termInputs: UpdateTermInput) => void;
+  setTerm: (term: string) => void;
 };
 
 export type CreateFormProps = {

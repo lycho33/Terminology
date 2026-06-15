@@ -85,7 +85,7 @@ export const CreateTermForm = ({
         name="term"
         value={newTerm}
         onChange={handleChange}
-        placeholder="create term"
+        placeholder="add term"
       />
       <button className="term-card__update-button" type="submit">
         Create
@@ -94,7 +94,12 @@ export const CreateTermForm = ({
   );
 };
 
-const UpdateTermForm = ({ term, onEditMode, updateTerm }: UpdateFormProps) => {
+const UpdateTermForm = ({
+  term,
+  onEditMode,
+  updateTerm,
+  setTerm,
+}: UpdateFormProps) => {
   const [newTerm, setNewTerm] = useState<string>(term.name);
   const inputRef = useRef<HTMLInputElement>(null); // refers to the input field
 
@@ -119,6 +124,7 @@ const UpdateTermForm = ({ term, onEditMode, updateTerm }: UpdateFormProps) => {
 
     if (nextTerm) {
       updateTerm({ term: term.name, newTerm: nextTerm });
+      setTerm(nextTerm);
     }
   };
 
@@ -142,7 +148,12 @@ const UpdateTermForm = ({ term, onEditMode, updateTerm }: UpdateFormProps) => {
   );
 };
 
-export const TermCard = ({ term, updateTerm, updateStatus }: TermCardProps) => {
+export const TermCard = ({
+  term,
+  updateTerm,
+  updateStatus,
+  setTerm,
+}: TermCardProps) => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
 
   const handleEdit = () => {
@@ -169,6 +180,7 @@ export const TermCard = ({ term, updateTerm, updateStatus }: TermCardProps) => {
             term={term}
             onEditMode={setIsEdit}
             updateTerm={updateTerm}
+            setTerm={setTerm}
           />
         )}
       </div>

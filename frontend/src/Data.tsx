@@ -60,6 +60,7 @@ export const Data = ({
         term={data}
         updateTerm={updateTerm}
         updateStatus={isUpdateSuccess}
+        setTerm={setTerm}
       />
     )
   );
