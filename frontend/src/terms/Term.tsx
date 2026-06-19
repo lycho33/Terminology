@@ -2,17 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { FiMinus } from "react-icons/fi";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
-import {
-  useCreateTerm,
-  useDeleteTerm,
-  useFetchTerm,
-  useTermContext,
-  useUpdateTerm,
-} from "../hooks";
+import { useTermContext } from "../hooks";
 import type { DeleteModalProps, UpdateFormProps } from "./types";
 
 export const TermSearchForm = () => {
-  const { term, setTerm, setCreateStatus } = useTermContext();
+  const { term, create } = useTermContext();
+  const { name, setTerm } = term;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTerm(e.target.value);
@@ -20,16 +15,16 @@ export const TermSearchForm = () => {
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const nextTerm = term.trim();
+    const nextTerm = name.trim();
 
     if (nextTerm) {
-      setCreateStatus("inactive");
+      create.setStatus("inactive");
       setTerm("");
     }
   };
 
   const handleSubmitClick = () => {
-    setCreateStatus("active");
+    create.setStatus("active");
     setTerm("");
   };
 
@@ -41,7 +36,7 @@ export const TermSearchForm = () => {
           id="term"
           type="text"
           name="term"
-          value={term}
+          value={name}
           onChange={handleChange}
           placeholder="Term"
         />
@@ -60,8 +55,9 @@ export const TermSearchForm = () => {
 };
 
 export const CreateTermForm = () => {
-  const { setTerm, setCreateStatus } = useTermContext();
-  const { mutate: createTerm } = useCreateTerm();
+  const { term, create } = useTermContext();
+  const { setTerm } = term;
+
   const [newTerm, setNewTerm] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,10 +68,10 @@ export const CreateTermForm = () => {
     const nextTerm = newTerm.trim();
 
     if (nextTerm) {
-      setCreateStatus("pending");
-      createTerm(nextTerm);
+      create.setStatus("pending");
+      create.createTerm(nextTerm);
       setTerm(nextTerm);
-      setCreateStatus("complete");
+      create.setStatus("complete");
     }
   };
 
@@ -97,9 +93,11 @@ export const CreateTermForm = () => {
   );
 };
 
-const UpdateTermForm = ({ updateTerm, onEditMode }: UpdateFormProps) => {
-  const { term, setTerm } = useTermContext();
-  const [newTerm, setNewTerm] = useState<string>(term);
+const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
+  const { term } = useTermContext();
+  const { name, setTerm, update } = term;
+
+  const [newTerm, setNewTerm] = useState<string>(name);
   const inputRef = useRef<HTMLInputElement>(null); // refers to the input field
 
   useEffect(() => {
@@ -122,7 +120,7 @@ const UpdateTermForm = ({ updateTerm, onEditMode }: UpdateFormProps) => {
     const nextTerm = newTerm.trim();
 
     if (nextTerm) {
-      updateTerm({ term, newTerm: nextTerm });
+      update.updateTerm({ term: name, newTerm: nextTerm });
       setTerm(nextTerm);
     }
   };
@@ -196,21 +194,13 @@ const DeleteModal = ({
 };
 
 export const TermCard = () => {
-  const { term, setTerm, createStatus } = useTermContext();
+  const { term, create } = useTermContext();
+  const { name, setTerm, get, update, remove: deleteFoo } = term;
+  const dataTerm = get.term;
+  const { deleteTerm, isDeleteError, isDeletePending } = deleteFoo;
+
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
-  const {
-    data,
-    isError,
-    isLoading,
-    isSuccess: isFetchSuccess,
-  } = useFetchTerm(term);
-  const { mutate: updateTerm, isSuccess: isUpdateSuccess } = useUpdateTerm();
-  const {
-    mutate: deleteTerm,
-    isError: isDeleteError,
-    isPending: isDeletePending,
-  } = useDeleteTerm();
 
   const handleDeleteTerm = (term: string) => {
     deleteTerm(term, {
@@ -218,9 +208,10 @@ export const TermCard = () => {
         setTerm("");
       },
     });
+    setIsDeleteModalOpen(false);
   };
 
-  if (createStatus === "active") {
+  if (create.status === "active") {
     return (
       <div className="term-card term-card--empty" role="status">
         <p className="eyebrow">Create a Term</p>
@@ -229,37 +220,37 @@ export const TermCard = () => {
     );
   }
 
-  if (term.length == 0) {
-    return null;
-  }
-
-  if (isLoading) {
+  if (get.isLoading) {
     return <TermCardSkeleton />;
   }
 
-  if (isError) {
+  if (get.isError) {
     return (
       <div className="term-card term-card--empty" role="status">
         <p className="eyebrow">Not found</p>
-        <h2>{term}</h2>
+        <h2>{name}</h2>
         <p>No term card is available for this lookup yet.</p>
       </div>
     );
   }
 
+  if (name.length == 0 || !get.term) {
+    return null;
+  }
+
   return (
-    isFetchSuccess && (
+    get.isSuccess && (
       <article className="term-card">
         <div className="term-card__topline">
           <span>Term</span>
           <span>Glossary</span>
         </div>
         <div className="term-card__title-row">
-          {!isEdit || isUpdateSuccess ? (
+          {!isEdit || update.isSuccess ? (
             <>
-              <h2>{data.name}</h2>
+              <h2>{dataTerm?.name}</h2>
               <button
-                aria-label={`Edit ${data.name}`}
+                aria-label={`Edit ${dataTerm?.name}`}
                 className="term-card__title-row-edit-btn"
                 type="button"
                 onClick={() => setIsEdit(true)}
@@ -267,7 +258,7 @@ export const TermCard = () => {
                 <MdOutlineEdit aria-hidden="true" />
               </button>
               <button
-                aria-label={`Delete ${data.name}`}
+                aria-label={`Delete ${dataTerm?.name}`}
                 className="term-card__icon-button term-card__delete-button"
                 type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
@@ -277,20 +268,15 @@ export const TermCard = () => {
               </button>
             </>
           ) : (
-            <UpdateTermForm
-              term={data}
-              onEditMode={setIsEdit}
-              updateTerm={updateTerm}
-              setTerm={setTerm}
-            />
+            <UpdateTermForm onEditMode={setIsEdit} />
           )}
         </div>
 
-        {isDeleteModalOpen && (
+        {isDeleteModalOpen && dataTerm && (
           <DeleteModal
             hasDeleteError={isDeleteError}
-            termName={data.name}
-            handleConfirmDelete={() => handleDeleteTerm(data.name)}
+            termName={dataTerm.name}
+            handleConfirmDelete={() => handleDeleteTerm(dataTerm.name)}
             handleCancelDelete={() => setIsDeleteModalOpen(false)}
             isDeleting={isDeletePending}
           />
@@ -298,7 +284,7 @@ export const TermCard = () => {
 
         <div className="term-card__section">
           <h3>Definition</h3>
-          <p>{data.definition ?? "No definition saved yet."}</p>
+          <p>{dataTerm?.definition ?? "No definition saved yet."}</p>
         </div>
 
         <div className="term-card__meta" aria-label="Term details">
