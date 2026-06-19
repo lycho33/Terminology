@@ -1,38 +1,40 @@
 import { useEffect, useRef, useState } from "react";
+import { FiMinus } from "react-icons/fi";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
-import { FiMinus } from "react-icons/fi";
-import type {
-  TermFormProps,
-  UpdateFormProps,
-  TermCardProps,
-  CreateFormProps,
-  DeleteModalProps,
-} from "./types";
+import {
+  useCreateTerm,
+  useDeleteTerm,
+  useFetchTerm,
+  useTermContext,
+  useUpdateTerm,
+} from "../hooks";
+import type { DeleteModalProps, UpdateFormProps } from "./types";
 
-export const TermSearchForm = ({
-  defaultTerm,
-  onCreateClick,
-  onSearch,
-}: TermFormProps) => {
-  const [term, setTerm] = useState(defaultTerm);
+export const TermSearchForm = () => {
+  const { term, setTerm, setCreateStatus } = useTermContext();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTerm(e.target.value);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextTerm = term.trim();
 
     if (nextTerm) {
-      onSearch(nextTerm);
+      setCreateStatus("inactive");
       setTerm("");
     }
   };
 
+  const handleSubmitClick = () => {
+    setCreateStatus("active");
+    setTerm("");
+  };
+
   return (
-    <form className="term-search" onSubmit={handleSubmit}>
+    <form className="term-search" onSubmit={handleSearchSubmit}>
       <label htmlFor="term">Lookup term</label>
       <div className="term-search__controls">
         <input
@@ -48,7 +50,7 @@ export const TermSearchForm = ({
           aria-label="Create term"
           className="term-search__create-button"
           type="button"
-          onClick={onCreateClick}
+          onClick={handleSubmitClick}
         >
           <MdAdd aria-hidden="true" />
         </button>
@@ -57,11 +59,9 @@ export const TermSearchForm = ({
   );
 };
 
-export const CreateTermForm = ({
-  createTerm,
-  onCreateComplete,
-  setTerm,
-}: CreateFormProps) => {
+export const CreateTermForm = () => {
+  const { setTerm, setCreateStatus } = useTermContext();
+  const { mutate: createTerm } = useCreateTerm();
   const [newTerm, setNewTerm] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,9 +72,10 @@ export const CreateTermForm = ({
     const nextTerm = newTerm.trim();
 
     if (nextTerm) {
+      setCreateStatus("pending");
       createTerm(nextTerm);
       setTerm(nextTerm);
-      onCreateComplete();
+      setCreateStatus("complete");
     }
   };
 
@@ -96,13 +97,9 @@ export const CreateTermForm = ({
   );
 };
 
-const UpdateTermForm = ({
-  term,
-  onEditMode,
-  updateTerm,
-  setTerm,
-}: UpdateFormProps) => {
-  const [newTerm, setNewTerm] = useState<string>(term.name);
+const UpdateTermForm = ({ updateTerm, onEditMode }: UpdateFormProps) => {
+  const { term, setTerm } = useTermContext();
+  const [newTerm, setNewTerm] = useState<string>(term);
   const inputRef = useRef<HTMLInputElement>(null); // refers to the input field
 
   useEffect(() => {
@@ -125,7 +122,7 @@ const UpdateTermForm = ({
     const nextTerm = newTerm.trim();
 
     if (nextTerm) {
-      updateTerm({ term: term.name, newTerm: nextTerm });
+      updateTerm({ term, newTerm: nextTerm });
       setTerm(nextTerm);
     }
   };
@@ -198,79 +195,124 @@ const DeleteModal = ({
   );
 };
 
-export const TermCard = ({
-  term,
-  updateTerm,
-  updateStatus,
-  setTerm,
-  deleteTerm,
-  isDeleting,
-  hasDeleteError,
-}: TermCardProps) => {
+export const TermCard = () => {
+  const { term, setTerm, createStatus } = useTermContext();
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const {
+    data,
+    isError,
+    isLoading,
+    isSuccess: isFetchSuccess,
+  } = useFetchTerm(term);
+  const { mutate: updateTerm, isSuccess: isUpdateSuccess } = useUpdateTerm();
+  const {
+    mutate: deleteTerm,
+    isError: isDeleteError,
+    isPending: isDeletePending,
+  } = useDeleteTerm();
+
+  const handleDeleteTerm = (term: string) => {
+    deleteTerm(term, {
+      onSuccess: () => {
+        setTerm("");
+      },
+    });
+  };
+
+  if (createStatus === "active") {
+    return (
+      <div className="term-card term-card--empty" role="status">
+        <p className="eyebrow">Create a Term</p>
+        <CreateTermForm />
+      </div>
+    );
+  }
+
+  if (term.length == 0) {
+    return null;
+  }
+
+  if (isLoading) {
+    return <TermCardSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <div className="term-card term-card--empty" role="status">
+        <p className="eyebrow">Not found</p>
+        <h2>{term}</h2>
+        <p>No term card is available for this lookup yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <article className="term-card">
-      <div className="term-card__topline">
-        <span>Term</span>
-        <span>Glossary</span>
-      </div>
-      <div className="term-card__title-row">
-        {!isEdit || updateStatus ? (
-          <>
-            <h2>{term.name}</h2>
-            <button
-              aria-label={`Edit ${term.name}`}
-              className="term-card__title-row-edit-btn"
-              type="button"
-              onClick={() => setIsEdit(true)}
-            >
-              <MdOutlineEdit aria-hidden="true" />
-            </button>
-            <button
-              aria-label={`Delete ${term.name}`}
-              className="term-card__icon-button term-card__delete-button"
-              type="button"
-              onClick={() => setIsDeleteModalOpen(true)}
-              disabled={isDeleting}
-            >
-              <FiMinus aria-hidden="true" />
-            </button>
-          </>
-        ) : (
-          <UpdateTermForm
-            term={term}
-            onEditMode={setIsEdit}
-            updateTerm={updateTerm}
-            setTerm={setTerm}
+    isFetchSuccess && (
+      <article className="term-card">
+        <div className="term-card__topline">
+          <span>Term</span>
+          <span>Glossary</span>
+        </div>
+        <div className="term-card__title-row">
+          {!isEdit || isUpdateSuccess ? (
+            <>
+              <h2>{data.name}</h2>
+              <button
+                aria-label={`Edit ${data.name}`}
+                className="term-card__title-row-edit-btn"
+                type="button"
+                onClick={() => setIsEdit(true)}
+              >
+                <MdOutlineEdit aria-hidden="true" />
+              </button>
+              <button
+                aria-label={`Delete ${data.name}`}
+                className="term-card__icon-button term-card__delete-button"
+                type="button"
+                onClick={() => setIsDeleteModalOpen(true)}
+                disabled={isDeletePending}
+              >
+                <FiMinus aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <UpdateTermForm
+              term={data}
+              onEditMode={setIsEdit}
+              updateTerm={updateTerm}
+              setTerm={setTerm}
+            />
+          )}
+        </div>
+
+        {isDeleteModalOpen && (
+          <DeleteModal
+            hasDeleteError={isDeleteError}
+            termName={data.name}
+            handleConfirmDelete={() => handleDeleteTerm(data.name)}
+            handleCancelDelete={() => setIsDeleteModalOpen(false)}
+            isDeleting={isDeletePending}
           />
         )}
-      </div>
-      {isDeleteModalOpen && (
-        <DeleteModal
-          hasDeleteError={hasDeleteError}
-          termName={term.name}
-          handleConfirmDelete={() => deleteTerm(term.name)}
-          handleCancelDelete={() => setIsDeleteModalOpen(false)}
-          isDeleting={isDeleting}
-        />
-      )}
-      <div className="term-card__section">
-        <h3>Definition</h3>
-        <p>{term.definition ?? "No definition saved yet."}</p>
-      </div>
-      <div className="term-card__meta" aria-label="Term details">
-        <div>
-          <span>Source</span>
-          <strong>Terminology API</strong>
+
+        <div className="term-card__section">
+          <h3>Definition</h3>
+          <p>{data.definition ?? "No definition saved yet."}</p>
         </div>
-        <div>
-          <span>Status</span>
-          <strong>Active</strong>
+
+        <div className="term-card__meta" aria-label="Term details">
+          <div>
+            <span>Source</span>
+            <strong>Terminology API</strong>
+          </div>
+          <div>
+            <span>Status</span>
+            <strong>Active</strong>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    )
   );
 };
 

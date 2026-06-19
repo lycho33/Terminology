@@ -4,8 +4,10 @@ import {
   useQueryClient,
   type QueryObserverResult,
 } from "@tanstack/react-query";
-import { getTerm, updateTerm, createTerm, deleteTerm } from "./actions";
+import { createTerm, deleteTerm, getTerm, updateTerm } from "./actions";
+import { TermContext, type TermContextValue } from "./context";
 import type { Term } from "./terms/types";
+import { useContext } from "react";
 
 export const useFetchTerm = (
   termName: string,
@@ -24,14 +26,24 @@ export type UpdateTermInput = {
 };
 
 export const useUpdateTerm = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (terms: UpdateTermInput) => updateTerm(terms),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terms"] }); // Invalidate cache to refetch
+    },
   });
 };
 
 export const useCreateTerm = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (newTerm: string) => createTerm(newTerm),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terms"] });
+    },
   });
 };
 
@@ -44,4 +56,15 @@ export const useDeleteTerm = () => {
       queryClient.removeQueries({ queryKey: ["terms"] }); // Removes this cached query
     },
   });
+};
+
+// Created to deal with the null
+export const useTermContext = (): TermContextValue => {
+  const context = useContext(TermContext);
+
+  if (!context) {
+    throw new Error("useTermContext must be used inside TermProvider");
+  }
+
+  return context;
 };
