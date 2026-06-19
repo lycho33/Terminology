@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
+import { FiMinus } from "react-icons/fi";
 import type {
   TermFormProps,
   UpdateFormProps,
   TermCardProps,
   CreateFormProps,
+  DeleteModalProps,
 } from "./types";
 
 export const TermSearchForm = ({
@@ -148,17 +150,65 @@ const UpdateTermForm = ({
   );
 };
 
+const DeleteModal = ({
+  hasDeleteError,
+  termName,
+  handleConfirmDelete,
+  handleCancelDelete,
+  isDeleting,
+}: DeleteModalProps) => {
+  return (
+    <div className="term-card__modal-backdrop">
+      <div
+        aria-describedby="delete-term-description"
+        aria-labelledby="delete-term-title"
+        aria-modal="true"
+        className="term-card__delete-dialog"
+        role="dialog"
+      >
+        <h3 id="delete-term-title">Delete term?</h3>
+        <p id="delete-term-description">
+          This will delete <strong>{termName}</strong> from your knowledge base.
+        </p>
+        {hasDeleteError && (
+          <p className="term-card__delete-error" role="alert">
+            Delete failed. Try again.
+          </p>
+        )}
+        <div className="term-card__delete-actions">
+          <button
+            className="term-card__delete-cancel"
+            type="button"
+            onClick={handleCancelDelete}
+            disabled={isDeleting}
+          >
+            Cancel
+          </button>
+          <button
+            className="term-card__delete-confirm"
+            type="button"
+            onClick={handleConfirmDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const TermCard = ({
   term,
   updateTerm,
   updateStatus,
   setTerm,
+  deleteTerm,
+  isDeleting,
+  hasDeleteError,
 }: TermCardProps) => {
   const [isEdit, setIsEdit] = useState<boolean>(false);
-
-  const handleEdit = () => {
-    setIsEdit(true);
-  };
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
 
   return (
     <article className="term-card">
@@ -170,10 +220,23 @@ export const TermCard = ({
         {!isEdit || updateStatus ? (
           <>
             <h2>{term.name}</h2>
-            <MdOutlineEdit
-              onClick={handleEdit}
+            <button
+              aria-label={`Edit ${term.name}`}
               className="term-card__title-row-edit-btn"
-            />
+              type="button"
+              onClick={() => setIsEdit(true)}
+            >
+              <MdOutlineEdit aria-hidden="true" />
+            </button>
+            <button
+              aria-label={`Delete ${term.name}`}
+              className="term-card__icon-button term-card__delete-button"
+              type="button"
+              onClick={() => setIsDeleteModalOpen(true)}
+              disabled={isDeleting}
+            >
+              <FiMinus aria-hidden="true" />
+            </button>
           </>
         ) : (
           <UpdateTermForm
@@ -184,6 +247,15 @@ export const TermCard = ({
           />
         )}
       </div>
+      {isDeleteModalOpen && (
+        <DeleteModal
+          hasDeleteError={hasDeleteError}
+          termName={term.name}
+          handleConfirmDelete={() => deleteTerm(term.name)}
+          handleCancelDelete={() => setIsDeleteModalOpen(false)}
+          isDeleting={isDeleting}
+        />
+      )}
       <div className="term-card__section">
         <h3>Definition</h3>
         <p>{term.definition ?? "No definition saved yet."}</p>

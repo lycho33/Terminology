@@ -114,7 +114,9 @@
   display: grid;
   gap: 22px;
   min-height: 320px;
+  overflow: hidden;
   padding: 28px;
+  position: relative;
 }
 
 .term-card__topline,
@@ -199,15 +201,46 @@
   color: var(--accent);
 }
 
+.term-card__icon-button,
 .term-card__title-row .term-card__title-row-edit-btn {
+  align-items: center;
   background: transparent;
   border: 0;
-  color: var(--accent);
+  border-radius: 6px;
+  color: var(--muted);
   cursor: pointer;
+  display: inline-flex;
   flex: 0 0 auto;
-  font: inherit;
-  font-weight: 700;
+  height: 2rem;
+  justify-content: center;
   padding: 0;
+  width: 2rem;
+}
+
+.term-card__title-row .term-card__title-row-edit-btn {
+  color: var(--accent);
+}
+
+.term-card__icon-button:hover,
+.term-card__title-row .term-card__title-row-edit-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.term-card__delete-button:hover {
+  background: rgba(180, 35, 24, 0.1);
+  color: #b42318;
+}
+
+.term-card__icon-button:focus-visible,
+.term-card__title-row .term-card__title-row-edit-btn:focus-visible {
+  outline: 3px solid var(--accent-bg);
+  outline-offset: 2px;
+}
+
+.term-card__icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .term-card__update-form {
@@ -248,6 +281,83 @@
 .term-card__update-button:focus-visible {
   outline: 3px solid var(--accent-bg);
   outline-offset: 4px;
+}
+
+.term-card__modal-backdrop {
+  align-items: center;
+  background: rgba(16, 21, 27, 0.58);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 22px;
+  position: absolute;
+  z-index: 2;
+}
+
+.term-card__delete-dialog {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  color: var(--text);
+  display: grid;
+  gap: 12px;
+  max-width: 360px;
+  padding: 22px;
+  width: min(100%, 360px);
+}
+
+.term-card__delete-dialog h3 {
+  color: var(--text-h);
+  font-size: 20px;
+  margin: 0;
+}
+
+.term-card__delete-dialog p {
+  margin: 0;
+}
+
+.term-card__delete-error {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.term-card__delete-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.term-card__delete-actions button {
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.term-card__delete-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.term-card__delete-actions button:focus-visible {
+  outline: 3px solid var(--accent-bg);
+  outline-offset: 2px;
+}
+
+.term-card__delete-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-h);
+}
+
+.term-card__delete-confirm {
+  background: #b42318;
+  border: 1px solid #b42318;
+  color: #ffffff;
 }
 
 .skeleton {

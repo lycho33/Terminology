@@ -1,4 +1,9 @@
-import { useCreateTerm, useFetchTerm, useUpdateTerm } from "./hooks";
+import {
+  useCreateTerm,
+  useDeleteTerm,
+  useFetchTerm,
+  useUpdateTerm,
+} from "./hooks";
 import { CreateTermForm, TermCard, TermCardSkeleton } from "./terms/Term";
 
 type DataProps = {
@@ -18,10 +23,23 @@ export const Data = ({
     data,
     isError,
     isLoading,
-    isSuccess: isFetchTermSuccess,
+    isSuccess: isFetchSuccess,
   } = useFetchTerm(termName);
   const { mutate: updateTerm, isSuccess: isUpdateSuccess } = useUpdateTerm();
   const { mutate: createTerm } = useCreateTerm();
+  const {
+    mutate: deleteTerm,
+    isError: isDeleteError,
+    isPending: isDeletePending,
+  } = useDeleteTerm();
+
+  const handleDeleteTerm = (term: string) => {
+    deleteTerm(term, {
+      onSuccess: () => {
+        setTerm("");
+      },
+    });
+  };
 
   if (isCreating) {
     return (
@@ -55,12 +73,15 @@ export const Data = ({
   }
 
   return (
-    isFetchTermSuccess && (
+    isFetchSuccess && (
       <TermCard
         term={data}
         updateTerm={updateTerm}
         updateStatus={isUpdateSuccess}
         setTerm={setTerm}
+        deleteTerm={handleDeleteTerm}
+        isDeleting={isDeletePending}
+        hasDeleteError={isDeleteError}
       />
     )
   );

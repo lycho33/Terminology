@@ -14,6 +14,9 @@ export type TermCardProps = {
   updateTerm: (termInputs: UpdateTermInput) => void;
   updateStatus: boolean;
   setTerm: (term: string) => void;
+  deleteTerm: (termName: string) => void;
+  isDeleting: boolean;
+  hasDeleteError: boolean;
 };
 export type UpdateFormProps = {
   term: Term;
@@ -26,4 +29,12 @@ export type CreateFormProps = {
   createTerm: (newTerm: string) => void;
   onCreateComplete: () => void;
   setTerm: (term: string) => void;
+};
+
+export type DeleteModalProps = {
+  hasDeleteError: boolean;
+  termName: string;
+  handleConfirmDelete: () => void;
+  isDeleting: boolean;
+  handleCancelDelete: () => void;
 };

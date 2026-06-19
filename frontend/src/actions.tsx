@@ -61,3 +61,25 @@ export const updateTerm = async (
 
   return terms.term;
 };
+
+type DeleteResponse = {
+  name: string;
+  result: unknown;
+};
+export const deleteTerm = async (termName: string): Promise<DeleteResponse> => {
+  const response = await fetch(
+    `http://localhost:8000/terms/${encodeURIComponent(termName)}`, // Adds space like "Docker%20registry" to make it URL friendly
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Network response was not ok for DELETE term");
+  }
+
+  return await response.json();
+};
