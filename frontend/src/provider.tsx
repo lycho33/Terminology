@@ -33,6 +33,11 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             isLoading,
             isSuccess,
           },
+          create: {
+            createTerm,
+            status: createStatus,
+            setStatus: setCreateStatus,
+          },
           update: {
             updateTerm,
             isSuccess: isUpdateSuccess,
@@ -42,11 +47,6 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             isDeleteError,
             isDeletePending,
           },
-        },
-        create: {
-          createTerm,
-          status: createStatus,
-          setStatus: setCreateStatus,
         },
       }}
     >

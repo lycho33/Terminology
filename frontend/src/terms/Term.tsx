@@ -6,8 +6,8 @@ import { useTermContext } from "../hooks";
 import type { DeleteModalProps, UpdateFormProps } from "./types";
 
 export const TermSearchForm = () => {
-  const { term, create } = useTermContext();
-  const { name, setTerm } = term;
+  const { term } = useTermContext();
+  const { name, setTerm, create } = term;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTerm(e.target.value);
@@ -55,8 +55,8 @@ export const TermSearchForm = () => {
 };
 
 export const CreateTermForm = () => {
-  const { term, create } = useTermContext();
-  const { setTerm } = term;
+  const { term } = useTermContext();
+  const { setTerm, create } = term;
 
   const [newTerm, setNewTerm] = useState<string>("");
   const [newDefinition, setNewDefinition] = useState<string>("");
@@ -261,8 +261,8 @@ const DeleteModal = ({
 };
 
 export const TermCard = () => {
-  const { term, create } = useTermContext();
-  const { name, setTerm, get, update, remove: deleteFoo } = term;
+  const { term } = useTermContext();
+  const { name, setTerm, get, create, update, remove: deleteFoo } = term;
   const dataTerm = get.term;
   const { deleteTerm, isDeleteError, isDeletePending } = deleteFoo;
 

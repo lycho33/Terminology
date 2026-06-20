@@ -13,6 +13,11 @@ export type TermContextValue = {
       isLoading: boolean;
       isSuccess: boolean;
     };
+    create: {
+      createTerm: (term: Term) => void;
+      status: CreateStatusEnum;
+      setStatus: (status: CreateStatusEnum) => void;
+    };
     update: {
       updateTerm: (input: UpdateTermInput) => void;
       isSuccess: boolean;
@@ -22,11 +27,6 @@ export type TermContextValue = {
       isDeleteError: boolean;
       isDeletePending: boolean;
     };
-  };
-  create: {
-    createTerm: (term: Term) => void;
-    status: CreateStatusEnum;
-    setStatus: (status: CreateStatusEnum) => void;
   };
 };
 export const TermContext = createContext<TermContextValue | null>(null);
