@@ -1,9 +1,11 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 class Term(BaseModel):
     name: str
-    # my_definition: str
+    definition: Optional[str] = None
 
 class UpdateTermRequest(BaseModel):
-    current_name: str
-    updated_name: str
+    name: Optional[str] = None
+    definition: Optional[str] = None

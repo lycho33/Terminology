@@ -42,25 +42,67 @@ def get_term(term_name: str):
     term = TermNode.match(term_name.capitalize())
     if term is None:
         raise HTTPException(status_code=404, detail="😓 Term not found")
-    return {"term": term}
+    return term
 
 @app.post("/terms/", status_code=status.HTTP_201_CREATED)
-def create_term(term: Term): # Fix this????
-    new_term = TermNode(name=term.name.capitalize())
-    new_term.create()
-    return new_term
+def create_term(payload: Term):
+    gc = GraphConnection()
 
-@app.patch("/terms/")
-def update_term(request: UpdateTermRequest):
+    create_query = """
+    CREATE (t:Term {name: $name, definition: $definition})
+    RETURN t.name AS name, t.definition AS definition
+    """
+
+    result = gc.evaluate_query(
+        create_query,
+        {
+            "name": payload.name.capitalize(),
+            "definition": payload.definition if payload.definition else None,
+        },
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fail to create Node {payload.name.capitalize()}",
+        )
+
+    return {"term": result}
+
+@app.patch("/terms/{term_name}")
+def update_term(term_name: str, payload: UpdateTermRequest):
     gc = GraphConnection()
 
     patch_query = """
-    MATCH (t:Term {name: $curr_term_name})
-    SET t.name = $updated_term_name
-    RETURN t.name
+    MATCH (t:Term {name: $current_name})
+    SET
+    t.name = CASE
+        WHEN $updated_name IS NOT NULL THEN $updated_name
+        ELSE t.name
+    END,
+    t.definition = CASE
+        WHEN $updated_definition IS NOT NULL THEN $updated_definition
+        ELSE t.definition
+    END
+    RETURN t.name AS name, t.definition AS definition
     """
-    res = gc.evaluate_query(patch_query, {"curr_term_name": request.current_name.capitalize(), "updated_term_name": request.updated_name.capitalize()})
-    return {"name": request.updated_name, "result": res}
+
+    result = gc.evaluate_query(
+        patch_query,
+        {
+            "current_name": term_name.capitalize(),
+            "updated_name": payload.name.capitalize() if payload.name else None,
+            "updated_definition": payload.definition,
+        },
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Node {term_name.capitalize()} not found",
+        )
+
+    return {"term": result}
 
 @app.delete("/terms/{term_name}")
 def delete_term(term_name: str):
