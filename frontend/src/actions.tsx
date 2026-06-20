@@ -18,14 +18,18 @@ export const getTerm = async (termName: string): Promise<Term> => {
   return await response.json();
 };
 
-export const createTerm = async (termName: string): Promise<Term> => {
+export const createTerm = async (term: {
+  name: string;
+  definition?: string;
+}): Promise<Term> => {
   const response = await fetch(`http://localhost:8000/terms/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      name: termName,
+      name: term.name,
+      definition: term.definition,
     }),
   });
 
@@ -48,6 +52,7 @@ export const updateTerm = async (
       },
       body: JSON.stringify({
         name: termInputs.newTerm,
+        definition: termInputs.definition,
       }),
     },
   );

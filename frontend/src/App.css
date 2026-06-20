@@ -250,6 +250,30 @@
   width: 100%;
 }
 
+.term-card__edit-form {
+  display: grid;
+  gap: 22px;
+  width: 100%;
+}
+
+.term-card__edit-title-row {
+  align-items: center;
+  display: flex;
+  gap: clamp(0.5rem, 1vi, 0.875rem);
+  width: 100%;
+}
+
+.term-card__create-form {
+  display: grid;
+  gap: 22px;
+  width: 100%;
+}
+
+.term-card__create-fields {
+  display: grid;
+  gap: 22px;
+}
+
 .term-card__update-input {
   background: transparent;
   border: 0;
@@ -264,8 +288,45 @@
   padding: 0;
 }
 
+.term-card__definition-editor {
+  border-left: 4px solid var(--accent);
+  display: grid;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.term-card__definition-label {
+  color: var(--text-h);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.term-card__definition-input {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  caret-color: var(--accent);
+  color: var(--text-h);
+  font: inherit;
+  line-height: 1.45;
+  min-height: 84px;
+  padding: 0;
+  resize: vertical;
+  width: 100%;
+}
+
+.term-card__definition-input:focus-visible {
+  outline: 3px solid var(--accent-bg);
+  outline-offset: 4px;
+}
+
 .term-card__update-input:focus-visible {
   outline: 0;
+}
+
+.term-card__create-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .term-card__update-button {
@@ -419,8 +480,17 @@
     flex-direction: column;
   }
 
+  .term-card__edit-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .term-card__update-input {
     font-size: 32px;
     width: 100%;
+  }
+
+  .term-card__create-actions {
+    justify-content: flex-start;
   }
 }

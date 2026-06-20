@@ -24,7 +24,7 @@ export type TermContextValue = {
     };
   };
   create: {
-    createTerm: (term: string) => void;
+    createTerm: (term: Term) => void;
     status: CreateStatusEnum;
     setStatus: (status: CreateStatusEnum) => void;
   };

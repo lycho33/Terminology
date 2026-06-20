@@ -23,24 +23,29 @@ export const useFetchTerm = (
 export type UpdateTermInput = {
   term: string;
   newTerm: string;
+  definition?: string;
 };
 
 export const useUpdateTerm = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (terms: UpdateTermInput) => updateTerm(terms),
+    mutationFn: (term: UpdateTermInput) => updateTerm(term),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["terms"] }); // Invalidate cache to refetch
     },
   });
 };
 
+export type CreateTermInput = {
+  name: string;
+  definition?: string;
+};
 export const useCreateTerm = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (newTerm: string) => createTerm(newTerm),
+    mutationFn: (term: CreateTermInput) => createTerm(term),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["terms"] });
     },

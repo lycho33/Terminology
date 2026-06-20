@@ -59,45 +59,78 @@ export const CreateTermForm = () => {
   const { setTerm } = term;
 
   const [newTerm, setNewTerm] = useState<string>("");
+  const [newDefinition, setNewDefinition] = useState<string>("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTerm(e.target.value);
   };
+
+  const handleDefinitionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    setNewDefinition(e.target.value);
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
+    const nextDefinition = newDefinition.trim();
 
     if (nextTerm) {
       create.setStatus("pending");
-      create.createTerm(nextTerm);
+      create.createTerm({
+        name: nextTerm,
+        definition: nextDefinition || undefined,
+      });
       setTerm(nextTerm);
       create.setStatus("complete");
     }
   };
 
   return (
-    <form className="term-card__update-form" onSubmit={handleSubmit}>
-      <input
-        className="term-card__update-input"
-        id="term"
-        type="text"
-        name="term"
-        value={newTerm}
-        onChange={handleChange}
-        placeholder="add term"
-      />
-      <button className="term-card__update-button" type="submit">
-        Create
-      </button>
+    <form className="term-card__create-form" onSubmit={handleSubmit}>
+      <div className="term-card__create-fields">
+        <input
+          className="term-card__update-input"
+          id="create-term"
+          type="text"
+          name="term"
+          value={newTerm}
+          onChange={handleTermChange}
+          placeholder="add term"
+        />
+        <div className="term-card__definition-editor">
+          <label className="term-card__definition-label" htmlFor="definition">
+            Definition
+          </label>
+          <textarea
+            className="term-card__definition-input"
+            id="definition"
+            name="definition"
+            value={newDefinition}
+            onChange={handleDefinitionChange}
+            placeholder="No definition saved yet."
+            rows={3}
+          />
+        </div>
+      </div>
+      <div className="term-card__create-actions">
+        <button className="term-card__update-button" type="submit">
+          Create
+        </button>
+      </div>
     </form>
   );
 };
 
 const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
   const { term } = useTermContext();
-  const { name, setTerm, update } = term;
+  const { name, get, setTerm, update } = term;
 
   const [newTerm, setNewTerm] = useState<string>(name);
+  const [newDefinition, setNewDefinition] = useState<string>(
+    get.term?.definition ?? "",
+  );
   const inputRef = useRef<HTMLInputElement>(null); // refers to the input field
 
   useEffect(() => {
@@ -111,36 +144,70 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
     input.setSelectionRange(input.value.length, input.value.length); // moves the cursor only within the range of the term
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTerm(e.target.value);
+  };
+
+  const handleDefinitionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    setNewDefinition(e.target.value);
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
+    const nextDefinition = newDefinition.trim();
 
     if (nextTerm) {
-      update.updateTerm({ term: name, newTerm: nextTerm });
+      update.updateTerm({
+        term: name,
+        newTerm: nextTerm,
+        definition: nextDefinition || undefined,
+      });
       setTerm(nextTerm);
     }
   };
 
   return (
-    <form className="term-card__update-form" onSubmit={handleSubmit}>
-      <input
-        className="term-card__update-input"
-        id="term"
-        ref={inputRef}
-        type="text"
-        name="term"
-        value={newTerm}
-        onChange={handleChange}
-        placeholder="update term"
-      />
-      <button className="term-card__update-button" type="submit">
-        Update
-      </button>
-      <VscChromeClose onClick={() => onEditMode(false)} />
+    <form className="term-card__edit-form" onSubmit={handleSubmit}>
+      <div className="term-card__edit-title-row">
+        <input
+          className="term-card__update-input"
+          id="term"
+          ref={inputRef}
+          type="text"
+          name="term"
+          value={newTerm}
+          onChange={handleTermChange}
+          placeholder="update term"
+        />
+        <button className="term-card__update-button" type="submit">
+          Update
+        </button>
+        <button
+          aria-label="Cancel update"
+          className="term-card__icon-button"
+          type="button"
+          onClick={() => onEditMode(false)}
+        >
+          <VscChromeClose aria-hidden="true" />
+        </button>
+      </div>
+      <div className="term-card__definition-editor">
+        <label className="term-card__definition-label" htmlFor="definition">
+          Definition
+        </label>
+        <textarea
+          className="term-card__definition-input"
+          id="definition"
+          name="definition"
+          value={newDefinition}
+          onChange={handleDefinitionChange}
+          placeholder="No definition saved yet."
+          rows={3}
+        />
+      </div>
     </form>
   );
 };
@@ -245,9 +312,11 @@ export const TermCard = () => {
           <span>Term</span>
           <span>Glossary</span>
         </div>
-        <div className="term-card__title-row">
-          {!isEdit || update.isSuccess ? (
-            <>
+        {isEdit && !update.isSuccess ? (
+          <UpdateTermForm onEditMode={setIsEdit} />
+        ) : (
+          <>
+            <div className="term-card__title-row">
               <h2>{dataTerm?.name}</h2>
               <button
                 aria-label={`Edit ${dataTerm?.name}`}
@@ -266,11 +335,14 @@ export const TermCard = () => {
               >
                 <FiMinus aria-hidden="true" />
               </button>
-            </>
-          ) : (
-            <UpdateTermForm onEditMode={setIsEdit} />
-          )}
-        </div>
+            </div>
+
+            <div className="term-card__section">
+              <h3>Definition</h3>
+              <p>{dataTerm?.definition ?? "No definition saved yet."}</p>
+            </div>
+          </>
+        )}
 
         {isDeleteModalOpen && dataTerm && (
           <DeleteModal
@@ -281,11 +353,6 @@ export const TermCard = () => {
             isDeleting={isDeletePending}
           />
         )}
-
-        <div className="term-card__section">
-          <h3>Definition</h3>
-          <p>{dataTerm?.definition ?? "No definition saved yet."}</p>
-        </div>
 
         <div className="term-card__meta" aria-label="Term details">
           <div>
