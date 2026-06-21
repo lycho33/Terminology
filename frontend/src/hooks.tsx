@@ -24,6 +24,7 @@ export type UpdateTermInput = {
   term: string;
   newTerm: string;
   definition?: string;
+  diagram?: string;
 };
 
 export const useUpdateTerm = () => {

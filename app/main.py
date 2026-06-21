@@ -49,8 +49,8 @@ def create_term(payload: Term):
     gc = GraphConnection()
 
     create_query = """
-    CREATE (t:Term {name: $name, definition: $definition})
-    RETURN t.name AS name, t.definition AS definition
+    CREATE (t:Term {name: $name, definition: $definition, diagram: $diagram})
+    RETURN t.name AS name, t.definition AS definition, t.diagram as diagram
     """
 
     result = gc.evaluate_query(
@@ -58,6 +58,7 @@ def create_term(payload: Term):
         {
             "name": payload.name.capitalize(),
             "definition": payload.definition if payload.definition else None,
+            "diagram": payload.diagram if payload.diagram else None,
         },
     )
 
@@ -83,8 +84,12 @@ def update_term(term_name: str, payload: UpdateTermRequest):
     t.definition = CASE
         WHEN $updated_definition IS NOT NULL THEN $updated_definition
         ELSE t.definition
+    END,
+    t.diagram = CASE
+        WHEN $updated_diagram IS NOT NULL THEN $updated_diagram
+        ELSE t.diagram
     END
-    RETURN t.name AS name, t.definition AS definition
+    RETURN t.name AS name, t.definition AS definition, t.diagram as diagram 
     """
 
     result = gc.evaluate_query(
@@ -93,6 +98,7 @@ def update_term(term_name: str, payload: UpdateTermRequest):
             "current_name": term_name.capitalize(),
             "updated_name": payload.name.capitalize() if payload.name else None,
             "updated_definition": payload.definition,
+            "updated_diagram": payload.diagram
         },
     )
 

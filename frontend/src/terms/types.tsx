@@ -1,6 +1,7 @@
 export type Term = {
   name: string;
   definition?: string;
+  diagram?: string;
 };
 export type UpdateFormProps = {
   onEditMode: (isEdit: boolean) => void;

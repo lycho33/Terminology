@@ -60,6 +60,7 @@ export const CreateTermForm = () => {
 
   const [newTerm, setNewTerm] = useState<string>("");
   const [newDefinition, setNewDefinition] = useState<string>("");
+  const [newDiagram, setNewDiagram] = useState<string>("");
 
   const handleTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTerm(e.target.value);
@@ -71,16 +72,22 @@ export const CreateTermForm = () => {
     setNewDefinition(e.target.value);
   };
 
+  const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewDiagram(e.target.value);
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
     const nextDefinition = newDefinition.trim();
+    const nextDiagram = newDiagram.trim();
 
     if (nextTerm) {
       create.setStatus("pending");
       create.createTerm({
         name: nextTerm,
         definition: nextDefinition || undefined,
+        diagram: nextDiagram || undefined,
       });
       setTerm(nextTerm);
       create.setStatus("complete");
@@ -113,6 +120,20 @@ export const CreateTermForm = () => {
             rows={3}
           />
         </div>
+        <div className="term-card__definition-editor">
+          <label className="term-card__definition-label" htmlFor="diagram">
+            Diagram
+          </label>
+          <textarea
+            className="term-card__definition-input"
+            id="diagram"
+            name="diagram"
+            value={newDiagram}
+            onChange={handleDiagramChange}
+            placeholder="No diagram saved yet."
+            rows={3}
+          />
+        </div>
       </div>
       <div className="term-card__create-actions">
         <button className="term-card__update-button" type="submit">
@@ -131,6 +152,7 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
   const [newDefinition, setNewDefinition] = useState<string>(
     get.term?.definition ?? "",
   );
+  const [newDiagram, setNewDiagram] = useState<string>(get.term?.diagram ?? "");
   const inputRef = useRef<HTMLInputElement>(null); // refers to the input field
 
   useEffect(() => {
@@ -154,16 +176,22 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
     setNewDefinition(e.target.value);
   };
 
+  const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewDiagram(e.target.value);
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
     const nextDefinition = newDefinition.trim();
+    const nextDiagram = newDiagram.trim();
 
     if (nextTerm) {
       update.updateTerm({
         term: name,
         newTerm: nextTerm,
         definition: nextDefinition || undefined,
+        diagram: nextDiagram || undefined,
       });
       setTerm(nextTerm);
     }
@@ -205,6 +233,20 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
           value={newDefinition}
           onChange={handleDefinitionChange}
           placeholder="No definition saved yet."
+          rows={3}
+        />
+      </div>
+      <div className="term-card__definition-editor">
+        <label className="term-card__definition-label" htmlFor="diagram">
+          Diagram
+        </label>
+        <textarea
+          className="term-card__definition-input"
+          id="diagram"
+          name="diagram"
+          value={newDiagram}
+          onChange={handleDiagramChange}
+          placeholder="No diagram saved yet."
           rows={3}
         />
       </div>
@@ -340,6 +382,11 @@ export const TermCard = () => {
             <div className="term-card__section">
               <h3>Definition</h3>
               <p>{dataTerm?.definition ?? "No definition saved yet."}</p>
+            </div>
+
+            <div className="term-card__section">
+              <h3>Diagram</h3>
+              <p>{dataTerm?.diagram ?? "No diagram saved yet."}</p>
             </div>
           </>
         )}

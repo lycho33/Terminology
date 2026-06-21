@@ -7,3 +7,4 @@ class TermNode(BaseNode):
 
     name: str
     definition: Optional[str] = None
+    diagram: Optional[str] = None
