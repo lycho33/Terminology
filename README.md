@@ -2,9 +2,9 @@
 
 Build a personal knowledge graph with AI generated diagrams that help you visualize what you're learning.
 
-## Demo so Far
+### Demo So Far
 
-[Watch the demo video](assets/terminology-demo.mp4)
+[Watch the demo video](https://github.com/lycho33/Terminology/raw/main/assets/terminology-demo.mp4)
 
 ### Tech Stack
 
