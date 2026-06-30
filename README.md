@@ -4,7 +4,7 @@ Build a personal knowledge graph with AI generated diagrams that help you visual
 
 ## Demo so Far
 
-<video src="assets/terminology-demo.mp4" controls width="700"></video>
+[Watch the demo video](assets/terminology-demo.mp4)
 
 ### Tech Stack
 
