@@ -1,8 +1,17 @@
+# Terminology
+
+Build a personal knowledge graph with AI generated diagrams that help you visualize what you're learning.
+
+## Demo so Far
+
+<video src="assets/terminology-demo.mp4" controls width="700"></video>
+
 ### Tech Stack
 
 - Neo4j
 - FastApi
 - Neontology
+- Vite / React
 
 ### Access DB
 
