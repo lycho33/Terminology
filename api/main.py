@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, status
-from typing import Optional
+# from typing import Optional
 from neontology import init_neontology, Neo4jConfig, GraphConnection
 from .config import settings
 from .nodes import TermNode
-from .models import Term, UpdateTermRequest
+from .models import ModelChatRequest, Term, UpdateTermRequest
 from fastapi.middleware.cors import CORSMiddleware
 
 import httpx
@@ -188,3 +188,37 @@ async def model_health():
 					status_code=503, 
 					detail="Model API is unavailable"
 				)
+
+@app.post("/model/chat", status_code=status.HTTP_201_CREATED)
+async def model_chat(payload: ModelChatRequest):
+    model_url = "http://llama-cpp:9000/v1/chat/completions"
+
+    # Non-streaming SVG generation can take several minutes on CPU.
+    timeout = httpx.Timeout(30.0, connect=10.0, read=900.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.post(
+                model_url,
+                json={
+                    "messages": [{"role": "user", "content": payload.prompt}],
+                    "max_tokens": 8192,
+                    "stream": False,
+                },
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=exc.response.status_code,
+                detail=f"Model API error: {exc.response.text}",
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Model API timed out",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Model API is unavailable",
+            ) from exc

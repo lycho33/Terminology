@@ -1,3 +1,4 @@
 .env
 frontend/node_modules
-/models/*/blobs
+/models/*
+api/__pycache__

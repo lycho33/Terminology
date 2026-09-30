@@ -1,5 +1,4 @@
 from typing import Annotated, Optional
-
 from pydantic import AfterValidator, BaseModel
 
 def check_not_empty(name: str) -> str:
@@ -19,3 +18,6 @@ class UpdateTermRequest(BaseModel):
     name: Optional[NonEmptyName] = None
     definition: Optional[str] = None
     diagram: Optional[str] = None
+
+class ModelChatRequest(BaseModel):
+    prompt: NonEmptyName
