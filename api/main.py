@@ -11,18 +11,16 @@ from neo4j.exceptions import ConstraintError, DriverError, Neo4jError
 
 app = FastAPI()
 
-# Allow [CORS](https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware)
-origins = [
-    "http://localhost:3030",
-    "http://127.0.0.1:3030",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        # Allow [CORS](https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware)
+        "http://localhost:3030",
+        "http://127.0.0.1:3030",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET, POST, PATCH, DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 @app.on_event("startup")
@@ -49,7 +47,7 @@ def read_root():
     return {"Hello": "World"}
 
 # -------------------------------------------------------------------------------
-@app.get("/terms/{term_name}")
+@app.get("/terms/{term_name:path}") # path includes slashes
 def get_term(term_name: str):
     term = TermNode.match(term_name.capitalize())
     if term is None:
@@ -90,7 +88,7 @@ def create_term(payload: Term):
 
     return {"term": result}
 
-@app.patch("/terms/{term_name}")
+@app.patch("/terms/{term_name:path}")
 def update_term(term_name: str, payload: UpdateTermRequest):
     gc = GraphConnection()
 
@@ -138,7 +136,7 @@ def update_term(term_name: str, payload: UpdateTermRequest):
 
     return {"term": result}
 
-@app.delete("/terms/{term_name}")
+@app.delete("/terms/{term_name:path}")
 def delete_term(term_name: str):
     # TODO: Query injection security concerns
     # TODO: Validate that all other relationships are severed before deleting this
@@ -192,6 +190,8 @@ async def model_health():
 @app.post("/model/chat", status_code=status.HTTP_201_CREATED)
 async def model_chat(payload: ModelChatRequest):
     model_url = "http://host.docker.internal:9001/v1/chat/completions" # making a request to llama.cpp that's running on my computer, not a container
+    # model_url = "http://llama-cpp:9000/v1/chat/completions"
+    # model_url = "http://model-runner.docker.internal/engines/llama.cpp/v1/chat/completions"
 
     timeout = httpx.Timeout(30.0, connect=10.0, read=900.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -200,6 +200,7 @@ async def model_chat(payload: ModelChatRequest):
                 model_url,
                 json={
                     "messages": [{"role": "user", "content": payload.prompt}],
+                    "model": "ai/gemma4",
                     "max_tokens": 8192,
                     "stream": False,
                 },
