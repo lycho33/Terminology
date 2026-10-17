@@ -191,9 +191,8 @@ async def model_health():
 
 @app.post("/model/chat", status_code=status.HTTP_201_CREATED)
 async def model_chat(payload: ModelChatRequest):
-    model_url = "http://llama-cpp:9000/v1/chat/completions"
+    model_url = "http://host.docker.internal:9001/v1/chat/completions" # making a request to llama.cpp that's running on my computer, not a container
 
-    # Non-streaming SVG generation can take several minutes on CPU.
     timeout = httpx.Timeout(30.0, connect=10.0, read=900.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
