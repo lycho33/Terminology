@@ -347,16 +347,16 @@ const DeleteModal = ({
 
 export const TermCard = () => {
   const { term } = useTermContext();
-  const { name, setTerm, get, create, update, remove: deleteFoo } = term;
+  const { name, setTerm, get, create, update, remove: deleteTermById } = term;
   const dataTerm = get.term;
   const { deleteTerm, deleteErrorMessage, isDeletePending, resetDeleteError } =
-    deleteFoo;
+    deleteTermById;
 
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
 
-  const handleDeleteTerm = (term: string) => {
-    deleteTerm(term, {
+  const handleDeleteTerm = (term_id: string) => {
+    deleteTerm(term_id, {
       onSuccess: () => {
         setTerm("");
         setIsDeleteModalOpen(false);
@@ -469,7 +469,9 @@ export const TermCard = () => {
           <DeleteModal
             deleteErrorMessage={deleteErrorMessage}
             termName={dataTerm.name}
-            handleConfirmDelete={() => handleDeleteTerm(dataTerm.name)}
+            handleConfirmDelete={() =>
+              dataTerm.id && handleDeleteTerm(dataTerm.id)
+            }
             handleCancelDelete={handleCancelDelete}
             isDeleting={isDeletePending}
           />

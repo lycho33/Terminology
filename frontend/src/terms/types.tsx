@@ -1,8 +1,10 @@
 export type Term = {
+  id: string;
   name: string;
   definition?: string;
   diagram?: string;
 };
+export type CreateTermInput = Omit<Term, "id">;
 export type UpdateFormProps = {
   onEditMode: (isEdit: boolean) => void;
 };

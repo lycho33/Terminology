@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import type { UpdateTermInput } from "./hooks";
-import type { Term } from "./terms/types";
+import type { CreateTermInput, Term } from "./terms/types";
 
 export type CreateStatusEnum =
   | "active"
@@ -27,7 +27,7 @@ export type TermContextValue = {
       errorStatus: number | null;
     };
     create: {
-      createTerm: (term: Term, callbacks: MutationCallbacks) => void;
+      createTerm: (term: CreateTermInput, callbacks: MutationCallbacks) => void;
       status: CreateStatusEnum;
       setStatus: (status: CreateStatusEnum) => void;
       errorMessage: string | null;
@@ -45,7 +45,7 @@ export type TermContextValue = {
       isPending: boolean;
     };
     remove: {
-      deleteTerm: (term: string, success: { onSuccess: () => void }) => void;
+      deleteTerm: (term_id: string, success: { onSuccess: () => void }) => void;
       deleteErrorMessage: string | null;
       isDeletePending: boolean;
       resetDeleteError: () => void;

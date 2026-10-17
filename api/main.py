@@ -1,3 +1,4 @@
+from uuid import uuid4
 from fastapi import FastAPI, HTTPException, status
 # from typing import Optional
 from neontology import init_neontology, Neo4jConfig, GraphConnection
@@ -19,13 +20,12 @@ app.add_middleware(
         "http://127.0.0.1:3030",
     ],
     allow_credentials=True,
-    allow_methods=["GET, POST, PATCH, DELETE"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
 )
 
 @app.on_event("startup")
 async def startup_event():
-    # Initialize the connection to the database
     config = Neo4jConfig(
         uri=settings.neo4j_uri, 
         username=settings.neo4j_username, 
@@ -58,18 +58,31 @@ def get_term(term_name: str):
 def create_term(payload: Term):
     gc = GraphConnection()
 
+    term = TermNode( # The node generates the ID
+        name=payload.name.capitalize(),
+        definition=payload.definition,
+        diagram=payload.diagram,
+    )
+
     create_query = """
-    CREATE (t:Term {name: $name, definition: $definition, diagram: $diagram})
-    RETURN t.name AS name, t.definition AS definition, t.diagram as diagram
+    CREATE (t:Term {
+        id: $id,
+        name: $name,
+        definition: $definition,
+        diagram: $diagram
+    })
+    RETURN t.id AS id, t.name AS name,
+        t.definition AS definition, t.diagram AS diagram
     """
 
     try:
         result = gc.evaluate_query(
             create_query,
             {
-                "name": payload.name.capitalize(),
-                "definition": payload.definition if payload.definition else None,
-                "diagram": payload.diagram if payload.diagram else None,
+                "id": term.id,
+                "name": term.name,
+                "definition": term.definition,
+                "diagram": term.diagram,
             },
         )
     except ConstraintError as exc:
@@ -136,33 +149,34 @@ def update_term(term_name: str, payload: UpdateTermRequest):
 
     return {"term": result}
 
-@app.delete("/terms/{term_name:path}")
-def delete_term(term_name: str):
+@app.delete("/terms/{term_id}")
+def delete_term(term_id: str):
     # TODO: Query injection security concerns
     # TODO: Validate that all other relationships are severed before deleting this
 
     gc = GraphConnection()
 
     delete_query = """
-    MATCH (t:Term {name: $term_name})
+    MATCH (t:Term {id: $term_id})
     DETACH DELETE t
-    RETURN count(t) as deleted_count
+    RETURN count(t) AS deleted_count
     """
+
     try:
-        res = gc.evaluate_query(delete_query, {"term_name": term_name.capitalize()})
+        res = gc.evaluate_query(delete_query, {"term_id": term_id})
     except (DriverError, Neo4jError) as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Database failed to delete term {term_name.capitalize()}",
+            detail=f"Database failed to delete term {term_id}",
         ) from exc
 
     if res.records_raw[0]["deleted_count"] == 0:
         raise HTTPException(
             status_code=404,
-            detail=f"Term {term_name.capitalize()} not found. Cannot delete",
+            detail=f"Term {term_id} not found. Cannot delete",
         )
 
-    return {"name": term_name, "result": res}
+    return {"result": res}
 
 @app.get("/model/health", status_code=status.HTTP_200_OK)
 async def model_health():
