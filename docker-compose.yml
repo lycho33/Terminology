@@ -1,18 +1,4 @@
 services:
-  llama-cpp:
-    image: ghcr.io/ggml-org/llama.cpp:server
-    container_name: llama-cpp
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./models:/models
-    environment:
-      LLAMA_ARG_CTX_SIZE: 8192
-      LLAMA_ARG_MODEL_URL: "https://huggingface.co/mradermacher/IntroSVG-Qwen2.5-VL-7B-GGUF/resolve/main/IntroSVG-Qwen2.5-VL-7B.Q8_0.gguf?download=true"
-      LLAMA_ARG_MODEL: /models/IntroSVG-Qwen2.5-VL-7B.Q8_0
-      LLAMA_ARG_N_PARALLEL: 1
-      LLAMA_ARG_ENDPOINT_METRICS: 1
-      LLAMA_ARG_PORT: 9000
   neo4j:
     image: neo4j:latest
     container_name: neo4j
@@ -41,8 +27,6 @@ services:
     depends_on:
       neo4j:
         condition: service_healthy
-      llama-cpp:
-        condition: service_started
     build:
       context: .
       dockerfile: Dockerfile.api

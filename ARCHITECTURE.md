@@ -1,4 +1,4 @@
-# Terminology Architecture
+# Architecture
 
 ## Application architecture
 
@@ -13,7 +13,7 @@ flowchart LR
     ui <--> api
     api <--> db
     api <--> model_router
-    model_router <--> open_model_1
+    model_router <--> Qwen3-Coder-30B-A3B-Instruct-UD-IQ1_M
     model_router <--> open_model_2
 ```
 
