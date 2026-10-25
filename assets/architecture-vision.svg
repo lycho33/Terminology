@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" width="1440" height="960" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Terminology — architecture vision</title>
+  <desc>Working sketch of the planned architecture: a local desktop app (Electron + React) talking to an API and a knowledge-graph store, with a model router that fans out to local models (llama.cpp) and to Claude via MCP. A sandboxed Docker runner renders diagram visuals.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-light" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .title { font-size: 28px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 15px; fill: #64748b; }
+      .h { font-size: 17px; font-weight: 700; fill: #0f172a; }
+      .h2 { font-size: 15px; font-weight: 600; fill: #0f172a; }
+      .sub { font-size: 12.5px; fill: #475569; }
+      .note { font-size: 12.5px; fill: #64748b; font-style: italic; }
+      .label { font-size: 12px; fill: #475569; }
+      .region { font-size: 14px; font-weight: 700; fill: #475569; letter-spacing: .04em; text-transform: uppercase; }
+      .chip { font-size: 12px; font-weight: 600; }
+      .edge { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .edge-dashed { stroke: #94a3b8; stroke-width: 2; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrow-light); }
+      .q { font-size: 13px; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" fill="#ffffff"/>
+
+  <!-- Header -->
+  <text x="40" y="52" class="title">Terminology — architecture vision</text>
+  <text x="40" y="80" class="subtitle">Everything runs on the learner's machine. Models are swappable behind a router. Diagram rendering is sandboxed. (Oct 2026 sketch — nothing here is final.)</text>
+
+  <!-- Product idea chip -->
+  <g transform="translate(1100,34)">
+    <rect width="300" height="56" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+    <text x="16" y="24" class="h2" fill="#9d174d">Product framing</text>
+    <text x="16" y="44" class="sub">"Adult flashcards" — learn a term, see it drawn</text>
+  </g>
+
+  <!-- Local desktop boundary -->
+  <rect x="40" y="120" width="1000" height="800" rx="18" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" stroke-dasharray="10 7"/>
+  <text x="64" y="152" class="region">Local — desktop app (VM?)</text>
+  <text x="64" y="172" class="note">Docker as the app runtime was crossed out; the app itself runs natively on the desktop.</text>
+
+  <!-- Electron + React -->
+  <g>
+    <rect x="70" y="210" width="230" height="150" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+    <text x="90" y="240" class="h">Electron shell</text>
+    <text x="90" y="258" class="sub">desktop window + local files</text>
+    <rect x="90" y="275" width="190" height="64" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+    <text x="108" y="302" class="h2">React UI</text>
+    <text x="108" y="322" class="sub">Vite / React today</text>
+  </g>
+
+  <!-- UI -> API -->
+  <path class="edge" d="M300,290 H425"/>
+  <text x="363" y="276" class="label" text-anchor="middle">HTTP + WebSocket</text>
+  <text x="363" y="312" class="label" text-anchor="middle">diagrams stream back</text>
+
+  <!-- API -->
+  <g>
+    <rect x="430" y="230" width="220" height="120" rx="14" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="450" y="260" class="h">API</text>
+    <text x="450" y="280" class="sub">FastAPI (Python) today</text>
+    <text x="450" y="300" class="sub">Rewrite candidates:</text>
+    <rect x="450" y="310" width="50" height="24" rx="12" fill="#ffffff" stroke="#16a34a"/>
+    <text x="475" y="326" class="chip" text-anchor="middle" fill="#166534">Go?</text>
+    <rect x="508" y="310" width="112" height="24" rx="12" fill="#ffffff" stroke="#16a34a"/>
+    <text x="564" y="326" class="chip" text-anchor="middle" fill="#166534">Python + uv?</text>
+  </g>
+
+  <!-- API -> Graph -->
+  <path class="edge" d="M650,290 H765"/>
+  <text x="708" y="276" class="label" text-anchor="middle">read / write terms</text>
+
+  <!-- Graph store -->
+  <g>
+    <path d="M770,245 a120,18 0 0 1 240,0 v90 a120,18 0 0 1 -240,0 z" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <path d="M770,245 a120,18 0 0 0 240,0" fill="none" stroke="#d97706" stroke-width="2"/>
+    <text x="890" y="290" class="h" text-anchor="middle">Knowledge graph</text>
+    <text x="890" y="310" class="sub" text-anchor="middle">Neo4j + Neontology today</text>
+    <text x="890" y="328" class="sub" text-anchor="middle">Postgres instead? ("PG?")</text>
+  </g>
+
+  <!-- Router -->
+  <g>
+    <rect x="430" y="440" width="220" height="110" rx="14" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text x="450" y="468" class="h">Model router</text>
+    <text x="450" y="488" class="sub">input: the <tspan font-weight="700">term</tspan> the learner picked</text>
+    <text x="450" y="506" class="sub">(plus prompt settings)</text>
+    <text x="450" y="526" class="sub">picks a model per request:</text>
+    <text x="450" y="542" class="sub">local for text, Claude for hard work</text>
+  </g>
+  <path class="edge" d="M540,440 V355"/>
+  <text x="552" y="402" class="label">term + prompt ↓  completions ↑</text>
+
+  <!-- Local models group -->
+  <rect x="80" y="610" width="440" height="280" rx="14" fill="#faf5ff" stroke="#a855f7" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="100" y="800" class="h">Local models</text>
+  <text x="100" y="820" class="sub">served by llama.cpp (Metal); Janus noted as an alternative runner</text>
+  <text x="100" y="838" class="sub">more models can be added behind the router without UI changes</text>
+  <g>
+    <rect x="110" y="630" width="180" height="130" rx="12" fill="#ffffff" stroke="#9333ea" stroke-width="2"/>
+    <text x="130" y="658" class="h2">Qwen3 ★</text>
+    <text x="130" y="678" class="sub">text generation</text>
+    <text x="130" y="696" class="sub">primary / running today</text>
+    <text x="130" y="714" class="sub">Qwen3-Coder-30B-A3B</text>
+    <text x="130" y="732" class="sub">(IQ1_M GGUF)</text>
+  </g>
+  <g>
+    <rect x="320" y="630" width="180" height="130" rx="12" fill="#ffffff" stroke="#a855f7" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="340" y="658" class="h2">Kimi</text>
+    <text x="340" y="678" class="sub">candidate second model</text>
+    <text x="340" y="696" class="sub">not yet tried</text>
+  </g>
+  <!-- Router -> local models -->
+  <path class="edge" d="M470,550 V585 H200 V625"/>
+  <path class="edge" d="M500,550 V585 H410 V625"/>
+
+  <!-- MCP -->
+  <g>
+    <rect x="660" y="660" width="170" height="90" rx="14" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+    <text x="680" y="690" class="h">MCP</text>
+    <text x="680" y="710" class="sub">tool / context protocol</text>
+    <text x="680" y="728" class="sub">bridge to hosted models</text>
+  </g>
+  <path class="edge" d="M620,550 V585 H745 V655"/>
+
+  <!-- MCP -> Claude (crosses boundary) -->
+  <path class="edge" d="M830,705 H1095"/>
+  <text x="962" y="692" class="label" text-anchor="middle">leaves the machine</text>
+
+  <!-- Claude (hosted) -->
+  <g>
+    <rect x="1100" y="650" width="300" height="110" rx="14" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+    <text x="1120" y="680" class="h">Claude (hosted)</text>
+    <text x="1120" y="700" class="sub">for harder reasoning / diagram drafts</text>
+    <text x="1120" y="722" class="sub">Auth idea: reuse the Claude Code login</text>
+    <text x="1120" y="740" class="sub">instead of a raw API key ("t3" note)</text>
+  </g>
+
+  <!-- Docker image runner -->
+  <g>
+    <rect x="1100" y="200" width="300" height="190" rx="14" fill="#fefce8" stroke="#ca8a04" stroke-width="2"/>
+    <text x="1120" y="230" class="h">Docker — image runner</text>
+    <text x="1120" y="250" class="sub">one Dockerfile; renders diagram source to</text>
+    <text x="1120" y="268" class="sub">an image/page in a sandbox</text>
+    <text x="1120" y="300" class="h2">Visual formats</text>
+    <rect x="1120" y="312" width="62" height="26" rx="13" fill="#ffffff" stroke="#ca8a04"/>
+    <text x="1151" y="329" class="chip" text-anchor="middle" fill="#854d0e">HTML</text>
+    <rect x="1190" y="312" width="82" height="26" rx="13" fill="#ffffff" stroke="#ca8a04"/>
+    <text x="1231" y="329" class="chip" text-anchor="middle" fill="#854d0e">Mermaid</text>
+    <rect x="1280" y="312" width="44" height="26" rx="13" fill="#ffffff" stroke="#ca8a04"/>
+    <text x="1302" y="329" class="chip" text-anchor="middle" fill="#854d0e">D2</text>
+    <text x="1120" y="362" class="note">Kept outside the app — the one Docker</text>
+    <text x="1120" y="378" class="note">use that survived the sketch.</text>
+  </g>
+  <!-- API -> Docker runner -->
+  <path class="edge-dashed" d="M540,230 V190 H1250 V195"/>
+  <text x="900" y="182" class="label" text-anchor="middle">render request → image / HTML back</text>
+
+  <!-- Open questions -->
+  <g transform="translate(1100,790)">
+    <rect width="300" height="130" rx="12" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="16" y="24" class="h2">Open questions from the sketch</text>
+    <text x="16" y="48" class="q">• API language: Go vs Python (uv)?</text>
+    <text x="16" y="68" class="q">• Graph store: keep Neo4j or move to Postgres?</text>
+    <text x="16" y="88" class="q">• How does the UI pick local vs Claude?</text>
+    <text x="16" y="108" class="q">• Is the desktop app a VM or native Electron?</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(64,945)">
+    <path class="edge" d="M0,0 H40"/>
+    <text x="50" y="4" class="label">request / data</text>
+    <path class="edge-dashed" d="M170,0 H210"/>
+    <text x="220" y="4" class="label">optional / sandboxed</text>
+    <rect x="370" y="-8" width="40" height="16" rx="4" fill="none" stroke="#94a3b8" stroke-dasharray="6 4"/>
+    <text x="420" y="4" class="label">trust boundary</text>
+    <text x="540" y="4" class="label">★ preferred today</text>
+  </g>
+</svg>
