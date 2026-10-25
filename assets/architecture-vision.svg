@@ -84,12 +84,11 @@
 
   <!-- Router -->
   <g>
-    <rect x="430" y="440" width="220" height="110" rx="14" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
-    <text x="450" y="468" class="h">Model router</text>
-    <text x="450" y="488" class="sub">input: the <tspan font-weight="700">term</tspan> the learner picked</text>
-    <text x="450" y="506" class="sub">(plus prompt settings)</text>
-    <text x="450" y="526" class="sub">picks a model per request:</text>
-    <text x="450" y="542" class="sub">local for text, Claude for hard work</text>
+    <rect x="420" y="440" width="250" height="110" rx="14" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+    <text x="440" y="468" class="h">Model router</text>
+    <text x="440" y="488" class="sub">candidate: <tspan font-weight="700">Jev</tspan> (Typesafe AI), a classifier</text>
+    <text x="440" y="506" class="sub">that picks model + effort per request</text>
+    <text x="440" y="530" class="sub">e.g. local for text, Claude for hard work</text>
   </g>
   <path class="edge" d="M540,440 V355"/>
   <text x="552" y="402" class="label">term + prompt ↓  completions ↑</text>
@@ -124,7 +123,7 @@
     <text x="680" y="710" class="sub">tool / context protocol</text>
     <text x="680" y="728" class="sub">bridge to hosted models</text>
   </g>
-  <path class="edge" d="M620,550 V585 H745 V655"/>
+  <path class="edge" d="M640,550 V585 H745 V655"/>
 
   <!-- MCP -> Claude (crosses boundary) -->
   <path class="edge" d="M830,705 H1095"/>
@@ -165,7 +164,7 @@
     <text x="16" y="24" class="h2">Open questions from the sketch</text>
     <text x="16" y="48" class="q">• API language: Go vs Python (uv)?</text>
     <text x="16" y="68" class="q">• Graph store: keep Neo4j or move to Postgres?</text>
-    <text x="16" y="88" class="q">• How does the UI pick local vs Claude?</text>
+    <text x="16" y="88" class="q">• Jev is hosted: is that OK for local-first?</text>
     <text x="16" y="108" class="q">• Is the desktop app a VM or native Electron?</text>
   </g>
 
