@@ -2,3 +2,4 @@
 frontend/node_modules
 /models/*
 api/__pycache__
+tests/__pycache__/

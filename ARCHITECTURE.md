@@ -23,7 +23,7 @@ The user creates, reads, updates, and deletes terms through the React UI. React 
 
 | User action       | HTTP request                | Persistence path                           |
 | ----------------- | --------------------------- | ------------------------------------------ |
-| Search for a term | `GET /terms/{term_name}`    | `TermNode.match(...)`                      |
-| Create a term     | `POST /terms/`              | `GraphConnection` + Cypher `CREATE`        |
-| Edit a term       | `PATCH /terms/{term_name}`  | `GraphConnection` + Cypher `MATCH`/`SET`   |
-| Delete a term     | `DELETE /terms/{term_name}` | `GraphConnection` + Cypher `DETACH DELETE` |
+| Search for a term | `GET /terms/{term_name}`    | Neo4j driver + Cypher `MATCH`                      |
+| Create a term     | `POST /terms/`              | Neo4j driver + Cypher `CREATE`        |
+| Edit a term       | `PATCH /terms/{term_name}`  | Neo4j driver + Cypher `MATCH`/`SET`   |
+| Delete a term     | `DELETE /terms/{term_id}` | Neo4j driver + Cypher `DETACH DELETE` |

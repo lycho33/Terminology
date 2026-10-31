@@ -1,182 +1,153 @@
-from uuid import uuid4
-from fastapi import FastAPI, HTTPException, status
-# from typing import Optional
-from neontology import init_neontology, Neo4jConfig, GraphConnection
-from .config import settings
+from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
+from neo4j import Driver, GraphDatabase
+from neo4j.exceptions import ConstraintError, DriverError, Neo4jError
+import httpx
+
+from .config import Settings
+from .database import get_driver, query_rows, scalar_result
+from .errors import (
+    ApiProblem,
+    ErrorResponse,
+    api_problem_handler,
+    database_error_handler,
+    validation_error_handler,
+)
 from .nodes import TermNode
 from .models import ModelChatRequest, Term, UpdateTermRequest
-from fastapi.middleware.cors import CORSMiddleware
 
-import httpx
-from neo4j.exceptions import ConstraintError, DriverError, Neo4jError
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = Settings()
+    driver = GraphDatabase.driver(
+        settings.neo4j_uri,
+        auth=(settings.neo4j_username, settings.neo4j_password),
+    )
+    try:
+        await run_in_threadpool(driver.verify_connectivity)
+        await run_in_threadpool(
+            driver.execute_query,
+            "CREATE CONSTRAINT term_name_unique IF NOT EXISTS FOR (t:Term) REQUIRE t.name IS UNIQUE",
+        )
+        app.state.driver = driver
+        yield
+    finally:
+        await run_in_threadpool(driver.close)
+        app.state.driver = None
 
+
+app = FastAPI(lifespan=lifespan, responses={422: {"model": ErrorResponse}})
+app.add_exception_handler(ApiProblem, api_problem_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(DriverError, database_error_handler)
+app.add_exception_handler(Neo4jError, database_error_handler)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        # Allow [CORS](https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware)
-        "http://localhost:3030",
-        "http://127.0.0.1:3030",
-    ],
+    allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
 )
 
-@app.on_event("startup")
-async def startup_event():
-    config = Neo4jConfig(
-        uri=settings.neo4j_uri, 
-        username=settings.neo4j_username, 
-        password=settings.neo4j_password
-    )
-    init_neontology(config)
-
-    gc = GraphConnection()
-
-    unique_constraint_query = """
-    CREATE CONSTRAINT term_name_unique IF NOT EXISTS
-    FOR (t:Term) REQUIRE t.name IS UNIQUE
-    """
-    unique_result = gc.evaluate_query(unique_constraint_query)
-    print(unique_result)
 
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
 
-# -------------------------------------------------------------------------------
-@app.get("/terms/{term_name:path}") # path includes slashes
-def get_term(term_name: str):
-    term = TermNode.match(term_name.capitalize())
-    if term is None:
-        raise HTTPException(status_code=404, detail="😓 Term not found")
-    return term
+
+@app.get("/terms/{term_name:path}")
+def get_term(term_name: str, driver: Driver = Depends(get_driver)):
+    rows = query_rows(
+        driver,
+        """
+        MATCH (t:Term {name: $name})
+        RETURN t.id AS id, t.name AS name, t.definition AS definition, t.diagram AS diagram
+    """,
+        {"name": term_name.capitalize()},
+    )
+    if not rows:
+        raise ApiProblem(404, "TERM_NOT_FOUND", "Term not found.")
+    return TermNode(**rows[0])
+
 
 @app.post("/terms/", status_code=status.HTTP_201_CREATED)
-def create_term(payload: Term):
-    gc = GraphConnection()
-
-    term = TermNode( # The node generates the ID
+def create_term(payload: Term, driver: Driver = Depends(get_driver)):
+    term = TermNode(
         name=payload.name.capitalize(),
         definition=payload.definition,
         diagram=payload.diagram,
     )
-
-    create_query = """
-    CREATE (t:Term {
-        id: $id,
-        name: $name,
-        definition: $definition,
-        diagram: $diagram
-    })
-    RETURN t.id AS id, t.name AS name,
-        t.definition AS definition, t.diagram AS diagram
-    """
-
     try:
-        result = gc.evaluate_query(
-            create_query,
-            {
-                "id": term.id,
-                "name": term.name,
-                "definition": term.definition,
-                "diagram": term.diagram,
-            },
+        rows = query_rows(
+            driver,
+            """
+            CREATE (t:Term {id: $id, name: $name, definition: $definition, diagram: $diagram})
+            RETURN t.id AS id, t.name AS name, t.definition AS definition, t.diagram AS diagram
+        """,
+            term.model_dump(),
         )
     except ConstraintError as exc:
-        # Occurs from the create constraint for unique names
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"❌ {payload.name.capitalize()} already exists",
+        raise ApiProblem(
+            409, "TERM_ALREADY_EXISTS", "A term with this name already exists.", "name"
         ) from exc
-
-    # TODO: 🔥
-    if not result:
-        raise HTTPException(
-            status_code=400,
-            detail=f"❌ Failed to create {payload.name.capitalize()}",
+    if not rows:
+        raise ApiProblem(
+            500, "DATABASE_ERROR", "The database did not return the created term."
         )
+    return {"term": scalar_result(rows)}
 
-    return {"term": result}
 
 @app.patch("/terms/{term_name:path}")
-def update_term(term_name: str, payload: UpdateTermRequest):
-    gc = GraphConnection()
-
-    patch_query = """
-    MATCH (t:Term {name: $current_name})
-    SET
-    t.name = CASE
-        WHEN $updated_name IS NOT NULL THEN $updated_name
-        ELSE t.name
-    END,
-    t.definition = CASE
-        WHEN $updated_definition IS NOT NULL THEN $updated_definition
-        ELSE t.definition
-    END,
-    t.diagram = CASE
-        WHEN $updated_diagram IS NOT NULL THEN $updated_diagram
-        ELSE t.diagram
-    END
-    RETURN t.name AS name, t.definition AS definition, t.diagram as diagram 
-    """
-
+def update_term(
+    term_name: str, payload: UpdateTermRequest, driver: Driver = Depends(get_driver)
+):
     try:
-        result = gc.evaluate_query(
-            patch_query,
+        rows = query_rows(
+            driver,
+            """
+            MATCH (t:Term {name: $current_name})
+            SET t.name = CASE WHEN $updated_name IS NOT NULL THEN $updated_name ELSE t.name END,
+                t.definition = CASE WHEN $updated_definition IS NOT NULL THEN $updated_definition ELSE t.definition END,
+                t.diagram = CASE WHEN $updated_diagram IS NOT NULL THEN $updated_diagram ELSE t.diagram END
+            RETURN t.name AS name, t.definition AS definition, t.diagram AS diagram
+        """,
             {
                 "current_name": term_name.capitalize(),
-                "updated_name": payload.name.capitalize() if payload.name else None,
+                "updated_name": payload.name.capitalize()
+                if payload.name is not None
+                else None,
                 "updated_definition": payload.definition,
-                "updated_diagram": payload.diagram
+                "updated_diagram": payload.diagram,
             },
         )
     except ConstraintError as exc:
-        # Occurs from the create constraint for unique names
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{payload.name.capitalize()} already exists. Rename the term as something else.",
+        raise ApiProblem(
+            409, "TERM_ALREADY_EXISTS", "A term with this name already exists.", "name"
         ) from exc
+    if not rows:
+        raise ApiProblem(404, "TERM_NOT_FOUND", "Term not found.")
+    return {"term": scalar_result(rows)}
 
-    # Would we still reach this error?
-    if not result:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Node {term_name.capitalize()} not found",
-        )
-
-    return {"term": result}
 
 @app.delete("/terms/{term_id}")
-def delete_term(term_id: str):
-    # TODO: Query injection security concerns
-    # TODO: Validate that all other relationships are severed before deleting this
+def delete_term(term_id: str, driver: Driver = Depends(get_driver)):
+    rows = query_rows(
+        driver,
+        """
+        MATCH (t:Term {id: $term_id})
+        DETACH DELETE t
+        RETURN count(t) AS deleted_count
+    """,
+        {"term_id": term_id},
+    )
+    if not rows or rows[0]["deleted_count"] == 0:
+        raise ApiProblem(404, "TERM_NOT_FOUND", "Term not found. Cannot delete.")
+    return {"result": scalar_result(rows)}
 
-    gc = GraphConnection()
-
-    delete_query = """
-    MATCH (t:Term {id: $term_id})
-    DETACH DELETE t
-    RETURN count(t) AS deleted_count
-    """
-
-    try:
-        res = gc.evaluate_query(delete_query, {"term_id": term_id})
-    except (DriverError, Neo4jError) as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database failed to delete term {term_id}",
-        ) from exc
-
-    if res.records_raw[0]["deleted_count"] == 0:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Term {term_id} not found. Cannot delete",
-        )
-
-    return {"result": res}
 
 @app.get("/model/health", status_code=status.HTTP_200_OK)
 async def model_health():

@@ -10,7 +10,7 @@ Build a personal knowledge graph with AI generated diagrams that help you visual
 
 - Neo4j
 - FastApi
-- Neontology
+- Official Neo4j Python driver
 - Vite / React
 - Llama.cpp
 
