@@ -22,6 +22,7 @@ from .models import ModelChatRequest, Term, UpdateTermRequest
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manages API startup and shutdown"""
     settings = Settings()
     driver = GraphDatabase.driver(
         settings.neo4j_uri,
@@ -34,8 +35,9 @@ async def lifespan(app: FastAPI):
             "CREATE CONSTRAINT term_name_unique IF NOT EXISTS FOR (t:Term) REQUIRE t.name IS UNIQUE",
         )
         app.state.driver = driver
-        yield
+        yield # Startup is complete
     finally:
+        """Close the driver and clear the driver's connections"""
         await run_in_threadpool(driver.close)
         app.state.driver = None
 

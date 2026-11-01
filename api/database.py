@@ -5,6 +5,7 @@ from neo4j import Driver
 
 
 def get_driver(request: Request) -> Driver:
+    """Python object that manages connections to the server and sends queries"""
     return request.app.state.driver
 
 
@@ -16,7 +17,7 @@ def query_rows(
 
 
 def scalar_result(rows: list[dict]) -> dict:
-    """Preserve the existing mutation JSON without retaining the old graph library.
+    """Preserves compatibility with the old Neontology response format to retain the same API responses
 
     These endpoints return scalar columns only, so all graph collections are empty.
     Raw records were serialized as ordered value arrays by Pydantic.

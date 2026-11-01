@@ -43,6 +43,7 @@ async def api_problem_handler(request: Request, exc: ApiProblem) -> JSONResponse
 async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
+    """Validates the data, the user submits follows these rules"""
     messages = {
         "missing": ("FIELD_REQUIRED", "This field is required."),
         "blank_text": ("FIELD_BLANK", "Enter a value that is not blank."),
