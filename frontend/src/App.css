@@ -263,6 +263,12 @@
   width: 100%;
 }
 
+.term-card__name-editor {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
 .term-card__create-form {
   display: grid;
   gap: 22px;
@@ -380,7 +386,7 @@
 
 .term-card__delete-error,
 .term-card__mutation-error {
-  color: #b42318;
+  color: var(--error);
   font-weight: 700;
 }
 

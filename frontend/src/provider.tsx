@@ -56,6 +56,7 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             status: createStatus,
             setStatus: setCreateStatus,
             errorMessage: createError?.message ?? null,
+            issues: isApiError(createError) ? createError.issues : [],
             isPending: isCreatePending,
             resetError: resetCreateError,
           },
@@ -64,6 +65,7 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             isSuccess: isUpdateSuccess,
             resetUpdateSuccess,
             errorMessage: updateError?.message ?? null,
+            issues: isApiError(updateError) ? updateError.issues : [],
             isPending: isUpdatePending,
           },
           remove: {
