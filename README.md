@@ -83,3 +83,8 @@ http://0.0.0.0:8000
 ### API Docs (Swagger)
 
 http://0.0.0.0:8000/docs
+
+### End-to-end tests
+
+See [the E2E test guide](docs/e2e-testing.md) for setup, local commands, CI,
+and the diagram of the real application and temporary test database.

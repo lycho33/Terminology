@@ -1,0 +1,47 @@
+name: CRUD E2E
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26.12.1"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.18"
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Prepare isolated E2E dependencies
+        env:
+          E2E_PYTHON: python
+        run: npm run test:e2e:setup --prefix frontend
+      - name: Run API unit tests
+        run: frontend/.e2e/venv/bin/python -m unittest discover -s tests -v
+      - name: Run frontend unit tests
+        run: npm test --prefix frontend
+      - name: Build frontend
+        run: npm run build --prefix frontend
+      - name: Lint frontend and E2E scripts
+        run: npm run lint --prefix frontend
+      - name: Run sequential Chromium and WebKit E2E tests
+        run: npm run test:e2e --prefix frontend
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crud-e2e-evidence
+          path: frontend/e2e-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
