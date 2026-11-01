@@ -68,6 +68,22 @@ cmake --build llama.cpp/build --target llama-server -j 8
 
 [Architecture Diagram](ARCHITECTURE.md)
 
+### Running E2E Tests
+
+```
+npm ci --prefix frontend
+npm run test:e2e:setup --prefix frontend
+npm run test:e2e --prefix frontend
+```
+
+Running a test in the browser
+
+```
+npm run test:e2e:headed --prefix frontend -- \
+  --project=chromium \
+  --grep "create required fields and read after reload"
+```
+
 ### Access DB
 
 [Locally](http://localhost:7474/browser/)

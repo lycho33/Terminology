@@ -3,8 +3,6 @@
 The suite tests term creation, lookup, editing, deletion, validation, and error
 display. Chromium and WebKit run one test at a time. Failed tests are not retried.
 
-## What is real?
-
 ```mermaid
 flowchart LR
     runner["Playwright test runner"]
@@ -29,27 +27,6 @@ flowchart LR
     driver -->|"Database queries"| db
     setup -.->|"Creates before tests and removes afterward"| container
 ```
-
-The database is real. Only its lifetime is temporary. Each run creates a fresh
-Neo4j instance with no user data mounts. Normal CRUD tests do not mock responses.
-Tests start the production frontend build and the real API. No model is needed.
-The runner removes inherited database and Vite settings. It uses an empty
-temporary folder for environment files. It does not read your `.env` files.
-
-Report names distinguish four types of check:
-
-- **real-stack:** Browser → React → FastAPI → driver → Neo4j.
-- **real HTTP:** Requests sent directly to FastAPI, including malformed data that
-  the form cannot send. These checks use the same real database.
-- **real API/database outage:** Stop only the test-owned service, check the error,
-  restart it, and check recovery.
-- **simulated response:** Replace a browser response to check rare server errors,
-  invalid response bodies, multiple field messages, or unknown fields. These
-  cases do not prove that the backend generates that response. Existing Python
-  tests check backend exception conversion.
-
-The delayed-request cases hold a request, then forward it to the real API. They
-check pending controls and duplicate submission without replacing the response.
 
 ## Requirements
 
@@ -144,6 +121,3 @@ existing Python/frontend tests, build and lint checks, then both E2E browsers.
 The existing opt-in Python database test is skipped in the unit-test step; the
 E2E suite performs the live database checks. Reports and logs are uploaded even
 when a test fails and are retained for 14 days.
-
-This branch adds tests and findings only. Application defects remain unchanged.
-The suite does not establish desktop packaging or App Sandbox compatibility.
