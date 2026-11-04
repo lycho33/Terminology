@@ -121,3 +121,27 @@ existing Python/frontend tests, build and lint checks, then both E2E browsers.
 The existing opt-in Python database test is skipped in the unit-test step; the
 E2E suite performs the live database checks. Reports and logs are uploaded even
 when a test fails and are retained for 14 days.
+
+### Open a CI report
+
+Each run that generates a Playwright report saves it as a separate artifact:
+`playwright-report-<run-id>-<attempt>`. A rerun has a new attempt number.
+The artifact contains the complete HTML report, including its supporting files.
+The `crud-e2e-evidence-<run-id>-<attempt>` artifact also keeps the service logs
+and other evidence. Both names distinguish separate run attempts.
+
+1. Open the workflow run in GitHub Actions.
+2. Under **Artifacts**, download `playwright-report-<run-id>-<attempt>`.
+3. Extract the complete ZIP file. Keep its folders together.
+4. From the repository's `frontend` folder, open the extracted report:
+
+```sh
+cd frontend
+npx playwright show-report /absolute/path/to/extracted-artifact/run-EXAMPLE/report
+```
+
+Replace the example path with the extracted `run-*` folder's `report` directory.
+`show-report` starts a local viewer for the saved report. It does not run tests.
+GitHub stores the artifact for 14 days. Download it before it expires if you need
+to keep it longer. If setup fails before Playwright generates a report, the
+upload step warns that no report exists. Check that run's job logs.

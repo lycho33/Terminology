@@ -37,11 +37,19 @@ jobs:
         run: npm run lint --prefix frontend
       - name: Run sequential Chromium and WebKit E2E tests
         run: npm run test:e2e --prefix frontend
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend/e2e-artifacts/run-*/report/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crud-e2e-evidence
+          name: crud-e2e-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: frontend/e2e-artifacts/
           if-no-files-found: warn
           retention-days: 14
