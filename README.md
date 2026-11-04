@@ -84,6 +84,21 @@ npm run test:e2e:headed --prefix frontend -- \
   --grep "create required fields and read after reload"
 ```
 
+### Running Unit Tests
+
+Frontend unit tests
+
+```
+npm test --prefix frontend
+```
+
+API unit tests
+
+```
+frontend/.e2e/venv/bin/python -m unittest discover \
+  -s tests -p 'test_api.py' -v
+```
+
 ### Access DB
 
 [Locally](http://localhost:7474/browser/)

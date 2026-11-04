@@ -14,6 +14,7 @@ import {
   statSync,
 } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 import path from "node:path";
 import os from "node:os";
 
@@ -183,9 +184,9 @@ async function startApi() {
     if (api.spawnError || api.exitCode !== null || api.signalCode !== null)
       throw new Error("Test API exited. See api.log.");
     if (
-      !readFileSync(logPath, "utf8")
-        .slice(offset)
-        .includes("Uvicorn running on http://127.0.0.1:8000")
+      !stripVTControlCharacters(
+        readFileSync(logPath, "utf8").slice(offset),
+      ).includes("Uvicorn running on http://127.0.0.1:8000")
     )
       return false;
     try {
@@ -313,10 +314,11 @@ try {
   await waitUntil(async () => {
     if (web.spawnError || web.exitCode !== null || web.signalCode !== null)
       throw new Error("Test frontend exited. See frontend.log.");
+    // CI color codes can split the URL between its host and port.
     if (
-      !readFileSync(path.join(artifacts, "frontend.log"), "utf8").includes(
-        "http://127.0.0.1:3030",
-      )
+      !stripVTControlCharacters(
+        readFileSync(path.join(artifacts, "frontend.log"), "utf8"),
+      ).includes("http://127.0.0.1:3030")
     )
       return false;
     try {

@@ -119,12 +119,13 @@ container name in `last-run.json` to inspect and remove only that test instance.
 The `CRUD E2E` workflow runs on pull requests and manual dispatch. One job runs
 existing Python/frontend tests, build and lint checks, then both E2E browsers.
 The existing opt-in Python database test is skipped in the unit-test step; the
-E2E suite performs the live database checks. Reports and logs are uploaded even
-when a test fails and are retained for 5 days.
+E2E suite performs the live database checks. Reports and logs are uploaded only
+when the job fails and are retained for 5 days. Successful jobs do not upload
+artifacts.
 
 ### Open a CI report
 
-Each run that generates a Playwright report saves it as a separate artifact:
+Each failed run that generates a Playwright report saves it as a separate artifact:
 `playwright-report-<run-id>-<attempt>`. A rerun has a new attempt number.
 The artifact contains the complete HTML report, including its supporting files.
 The `crud-e2e-evidence-<run-id>-<attempt>` artifact also keeps the service logs
