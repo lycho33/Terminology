@@ -68,6 +68,37 @@ cmake --build llama.cpp/build --target llama-server -j 8
 
 [Architecture Diagram](ARCHITECTURE.md)
 
+### Running E2E Tests
+
+```
+npm ci --prefix frontend
+npm run test:e2e:setup --prefix frontend
+npm run test:e2e --prefix frontend
+```
+
+Running a test in the browser
+
+```
+npm run test:e2e:headed --prefix frontend -- \
+  --project=chromium \
+  --grep "create required fields and read after reload"
+```
+
+### Running Unit Tests
+
+Frontend unit tests
+
+```
+npm test --prefix frontend
+```
+
+API unit tests
+
+```
+frontend/.e2e/venv/bin/python -m unittest discover \
+  -s tests -p 'test_api.py' -v
+```
+
 ### Access DB
 
 [Locally](http://localhost:7474/browser/)
@@ -83,3 +114,8 @@ http://0.0.0.0:8000
 ### API Docs (Swagger)
 
 http://0.0.0.0:8000/docs
+
+### End-to-end tests
+
+See [the E2E test guide](docs/e2e-testing.md) for setup, local commands, CI,
+and the diagram of the real application and temporary test database.

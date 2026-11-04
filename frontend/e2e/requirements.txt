@@ -1,0 +1,8 @@
+# Stage-one test versions only. Application upgrades remain a separate stage.
+fastapi==0.113.0
+pydantic==2.9.2
+pydantic-settings==2.5.2
+neo4j==5.28.8
+httpx==0.28.1
+python-dotenv==1.2.4
+uvicorn==0.30.6
