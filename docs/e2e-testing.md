@@ -120,7 +120,7 @@ The `CRUD E2E` workflow runs on pull requests and manual dispatch. One job runs
 existing Python/frontend tests, build and lint checks, then both E2E browsers.
 The existing opt-in Python database test is skipped in the unit-test step; the
 E2E suite performs the live database checks. Reports and logs are uploaded even
-when a test fails and are retained for 14 days.
+when a test fails and are retained for 5 days.
 
 ### Open a CI report
 
@@ -142,6 +142,6 @@ npx playwright show-report /absolute/path/to/extracted-artifact/run-EXAMPLE/repo
 
 Replace the example path with the extracted `run-*` folder's `report` directory.
 `show-report` starts a local viewer for the saved report. It does not run tests.
-GitHub stores the artifact for 14 days. Download it before it expires if you need
+GitHub stores the artifact for 5 days. Download it before it expires if you need
 to keep it longer. If setup fails before Playwright generates a report, the
 upload step warns that no report exists. Check that run's job logs.
