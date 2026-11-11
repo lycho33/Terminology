@@ -6,7 +6,12 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.e2e', 'e2e-artifacts']),
+  {
+    files: ['e2e/**/*.mjs', 'playwright.config.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
