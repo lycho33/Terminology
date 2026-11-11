@@ -40,8 +40,7 @@ flowchart LR
 The database image is pinned by digest to the Neo4j 2026.06.0 image used in stage
 one. The image includes both ARM64 and AMD64 builds. This avoids the moving
 `neo4j:latest` tag. The suite installs the application dependency set from the root
-`requirements.txt`, through `frontend/e2e/requirements.txt`. See the
-[API dependency guide](api-dependencies.md) for versions and update checks.
+`requirements.txt`, through `frontend/e2e/requirements.txt`.
 
 ## Run locally
 
@@ -113,7 +112,7 @@ container name in `last-run.json` to inspect and remove only that test instance.
 - **Database readiness failure:** Read `neo4j.log`. Docker needs sufficient memory
   for the temporary database.
 - **Failed test:** Open the report and inspect the trace. Do not hide a failure by
-  skipping the assertion. See `e2e-findings.md` for confirmed application defects.
+  skipping the assertion.
 
 ## CI
 

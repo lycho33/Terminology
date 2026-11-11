@@ -86,8 +86,6 @@ npm run test:e2e:headed --prefix frontend -- \
 
 ### Running Unit Tests
 
-See [API dependency versions and update checks](docs/api-dependencies.md).
-
 Frontend unit tests
 
 ```
