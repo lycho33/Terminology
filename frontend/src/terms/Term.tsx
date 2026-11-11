@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { FiMinus } from "react-icons/fi";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
+import { fieldMessages, formMessages } from "../api-errors";
+import { ValidationMessages } from "./ValidationMessages";
 import { useTermContext } from "../hooks";
 import type { DeleteModalProps, UpdateFormProps } from "./types";
 
@@ -64,16 +66,19 @@ export const CreateTermForm = () => {
 
   const handleTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTerm(e.target.value);
+    create.resetError();
   };
 
   const handleDefinitionChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     setNewDefinition(e.target.value);
+    create.resetError();
   };
 
   const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewDiagram(e.target.value);
+    create.resetError();
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -82,25 +87,23 @@ export const CreateTermForm = () => {
     const nextDefinition = newDefinition.trim();
     const nextDiagram = newDiagram.trim();
 
-    if (nextTerm) {
-      create.setStatus("pending");
-      create.createTerm(
-        {
-          name: nextTerm,
-          definition: nextDefinition || undefined,
-          diagram: nextDiagram || undefined,
+    create.setStatus("pending");
+    create.createTerm(
+      {
+        name: nextTerm,
+        definition: nextDefinition || undefined,
+        diagram: nextDiagram || undefined,
+      },
+      {
+        onSuccess: () => {
+          setTerm(nextTerm);
+          create.setStatus("complete");
         },
-        {
-          onSuccess: () => {
-            setTerm(nextTerm);
-            create.setStatus("complete");
-          },
-          onError: () => {
-            create.setStatus("error");
-          },
+        onError: () => {
+          create.setStatus("error");
         },
-      );
-    }
+      },
+    );
   };
 
   return (
@@ -109,11 +112,23 @@ export const CreateTermForm = () => {
         <input
           className="term-card__update-input"
           id="create-term"
+          aria-label="Term name"
           type="text"
           name="term"
           value={newTerm}
           onChange={handleTermChange}
+          disabled={create.isPending}
+          aria-invalid={fieldMessages(create.issues, "name").length > 0}
+          aria-describedby={
+            fieldMessages(create.issues, "name").length > 0
+              ? "create-name-errors"
+              : undefined
+          }
           placeholder="add term"
+        />
+        <ValidationMessages
+          id="create-name-errors"
+          messages={fieldMessages(create.issues, "name")}
         />
         <div className="term-card__definition-editor">
           <label className="term-card__definition-label" htmlFor="definition">
@@ -125,8 +140,19 @@ export const CreateTermForm = () => {
             name="definition"
             value={newDefinition}
             onChange={handleDefinitionChange}
+            disabled={create.isPending}
+            aria-invalid={fieldMessages(create.issues, "definition").length > 0}
+            aria-describedby={
+              fieldMessages(create.issues, "definition").length > 0
+                ? "create-definition-errors"
+                : undefined
+            }
             placeholder="No definition saved yet."
             rows={3}
+          />
+          <ValidationMessages
+            id="create-definition-errors"
+            messages={fieldMessages(create.issues, "definition")}
           />
         </div>
         <div className="term-card__definition-editor">
@@ -139,16 +165,25 @@ export const CreateTermForm = () => {
             name="diagram"
             value={newDiagram}
             onChange={handleDiagramChange}
+            disabled={create.isPending}
+            aria-invalid={fieldMessages(create.issues, "diagram").length > 0}
+            aria-describedby={
+              fieldMessages(create.issues, "diagram").length > 0
+                ? "create-diagram-errors"
+                : undefined
+            }
             placeholder="No diagram saved yet."
             rows={3}
           />
+          <ValidationMessages
+            id="create-diagram-errors"
+            messages={fieldMessages(create.issues, "diagram")}
+          />
         </div>
       </div>
-      {create.status === "error" && create.errorMessage && (
-        <p className="term-card__mutation-error" role="alert">
-          {create.errorMessage}
-        </p>
-      )}
+      <ValidationMessages
+        messages={formMessages(create.issues, create.errorMessage)}
+      />
       <div className="term-card__create-actions">
         <button
           className="term-card__update-button"
@@ -188,16 +223,19 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
 
   const handleTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTerm(e.target.value);
+    update.resetUpdateSuccess();
   };
 
   const handleDefinitionChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     setNewDefinition(e.target.value);
+    update.resetUpdateSuccess();
   };
 
   const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewDiagram(e.target.value);
+    update.resetUpdateSuccess();
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -206,23 +244,21 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
     const nextDefinition = newDefinition?.trim();
     const nextDiagram = newDiagram?.trim();
 
-    if (nextTerm) {
-      update.updateTerm(
-        {
-          term: name,
-          newTerm: nextTerm,
-          definition: nextDefinition,
-          diagram: nextDiagram,
+    update.updateTerm(
+      {
+        term: name,
+        newTerm: nextTerm,
+        definition: nextDefinition,
+        diagram: nextDiagram,
+      },
+      {
+        onSuccess: () => {
+          setTerm(nextTerm);
+          onEditMode(false);
+          update.resetUpdateSuccess();
         },
-        {
-          onSuccess: () => {
-            setTerm(nextTerm);
-            onEditMode(false);
-            update.resetUpdateSuccess();
-          },
-        },
-      );
-    }
+      },
+    );
   };
 
   const handleCancelUpdate = () => {
@@ -233,16 +269,30 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
   return (
     <form className="term-card__edit-form" onSubmit={handleSubmit}>
       <div className="term-card__edit-title-row">
-        <input
-          className="term-card__update-input"
-          id="term"
-          ref={inputRef}
-          type="text"
-          name="term"
-          value={newTerm}
-          onChange={handleTermChange}
-          placeholder="update term"
-        />
+        <div className="term-card__name-editor">
+          <input
+            className="term-card__update-input"
+            id="update-term"
+            aria-label="Term name"
+            ref={inputRef}
+            type="text"
+            name="term"
+            value={newTerm}
+            onChange={handleTermChange}
+            disabled={update.isPending}
+            aria-invalid={fieldMessages(update.issues, "name").length > 0}
+            aria-describedby={
+              fieldMessages(update.issues, "name").length > 0
+                ? "update-name-errors"
+                : undefined
+            }
+            placeholder="update term"
+          />
+          <ValidationMessages
+            id="update-name-errors"
+            messages={fieldMessages(update.issues, "name")}
+          />
+        </div>
         <button
           className="term-card__update-button"
           type="submit"
@@ -260,11 +310,9 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
           <VscChromeClose aria-hidden="true" />
         </button>
       </div>
-      {update.errorMessage && (
-        <p className="term-card__mutation-error" role="alert">
-          {update.errorMessage}
-        </p>
-      )}
+      <ValidationMessages
+        messages={formMessages(update.issues, update.errorMessage)}
+      />
       <div className="term-card__definition-editor">
         <label className="term-card__definition-label" htmlFor="definition">
           Definition
@@ -275,8 +323,19 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
           name="definition"
           value={newDefinition}
           onChange={handleDefinitionChange}
+          disabled={update.isPending}
+          aria-invalid={fieldMessages(update.issues, "definition").length > 0}
+          aria-describedby={
+            fieldMessages(update.issues, "definition").length > 0
+              ? "update-definition-errors"
+              : undefined
+          }
           placeholder="No definition saved yet."
           rows={3}
+        />
+        <ValidationMessages
+          id="update-definition-errors"
+          messages={fieldMessages(update.issues, "definition")}
         />
       </div>
       <div className="term-card__definition-editor">
@@ -289,8 +348,19 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
           name="diagram"
           value={newDiagram}
           onChange={handleDiagramChange}
+          disabled={update.isPending}
+          aria-invalid={fieldMessages(update.issues, "diagram").length > 0}
+          aria-describedby={
+            fieldMessages(update.issues, "diagram").length > 0
+              ? "update-diagram-errors"
+              : undefined
+          }
           placeholder="No diagram saved yet."
           rows={3}
+        />
+        <ValidationMessages
+          id="update-diagram-errors"
+          messages={fieldMessages(update.issues, "diagram")}
         />
       </div>
     </form>

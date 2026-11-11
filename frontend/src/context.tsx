@@ -1,13 +1,10 @@
+import type { ApiIssue } from "./api-errors";
 import { createContext } from "react";
 import type { UpdateTermInput } from "./hooks";
 import type { CreateTermInput, Term } from "./terms/types";
 
 export type CreateStatusEnum =
-  | "active"
-  | "inactive"
-  | "pending"
-  | "complete"
-  | "error";
+  "active" | "inactive" | "pending" | "complete" | "error";
 
 type MutationCallbacks = {
   onSuccess: () => void;
@@ -31,6 +28,7 @@ export type TermContextValue = {
       status: CreateStatusEnum;
       setStatus: (status: CreateStatusEnum) => void;
       errorMessage: string | null;
+      issues: ApiIssue[];
       isPending: boolean;
       resetError: () => void;
     };
@@ -42,6 +40,7 @@ export type TermContextValue = {
       isSuccess: boolean;
       resetUpdateSuccess: () => void;
       errorMessage: string | null;
+      issues: ApiIssue[];
       isPending: boolean;
     };
     remove: {

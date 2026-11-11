@@ -1,41 +1,12 @@
+import { readApiError } from "./api-errors";
 import type { UpdateTermInput } from "./hooks";
 import type { Term } from "./terms/types";
 
-type TermResponse = {
-  term: Term;
+type MutationResponse = {
+  term: unknown;
 };
 
-export type ApiError = Error & { status: number };
-
-export const isApiError = (error: unknown): error is ApiError =>
-  error instanceof Error &&
-  "status" in error &&
-  typeof error.status === "number";
-
-const createApiError = (status: number, message: string): ApiError =>
-  Object.assign(new Error(message), { name: "ApiError", status });
-
-const getApiErrorMessage = async (
-  response: Response,
-  fallback: string,
-): Promise<string> => {
-  try {
-    const errorResponse: unknown = await response.json();
-
-    if (
-      typeof errorResponse === "object" &&
-      errorResponse !== null &&
-      "detail" in errorResponse &&
-      typeof errorResponse.detail === "string"
-    ) {
-      return errorResponse.detail;
-    }
-  } catch {
-    // Use the fallback when the API does not return JSON.
-  }
-
-  return fallback;
-};
+export { isApiError } from "./api-errors";
 
 // https://tanstack.com/query/latest/docs/framework/react/quick-start
 export const getTerm = async (termName: string): Promise<Term> => {
@@ -44,10 +15,7 @@ export const getTerm = async (termName: string): Promise<Term> => {
   );
 
   if (!response.ok) {
-    throw createApiError(
-      response.status,
-      await getApiErrorMessage(response, "Term lookup failed. Try again."),
-    );
+    throw await readApiError(response, "Term lookup failed. Try again.");
   }
 
   return await response.json();
@@ -57,7 +25,7 @@ export const createTerm = async (term: {
   name: string;
   definition?: string;
   diagram?: string;
-}): Promise<Term> => {
+}): Promise<MutationResponse> => {
   const response = await fetch(`http://localhost:8000/terms/`, {
     method: "POST",
     headers: {
@@ -71,10 +39,7 @@ export const createTerm = async (term: {
   });
 
   if (!response.ok) {
-    throw createApiError(
-      response.status,
-      await getApiErrorMessage(response, "Create failed. Try again."),
-    );
+    throw await readApiError(response, "Create failed. Try again.");
   }
 
   return await response.json();
@@ -82,7 +47,7 @@ export const createTerm = async (term: {
 
 export const updateTerm = async (
   termInputs: UpdateTermInput,
-): Promise<Term> => {
+): Promise<MutationResponse> => {
   const response = await fetch(
     `http://localhost:8000/terms/${encodeURIComponent(termInputs.term)}`,
     {
@@ -99,25 +64,19 @@ export const updateTerm = async (
   );
 
   if (!response.ok) {
-    throw createApiError(
-      response.status,
-      await getApiErrorMessage(response, "Update failed. Try again."),
-    );
+    throw await readApiError(response, "Update failed. Try again.");
   }
 
-  const terms: TermResponse = await response.json(); // Update this
-
-  return terms.term;
+  return await response.json();
 };
 
 type DeleteResponse = {
-  name: string;
   result: unknown;
 };
 
-export const deleteTerm = async (termName: string): Promise<DeleteResponse> => {
+export const deleteTerm = async (termId: string): Promise<DeleteResponse> => {
   const response = await fetch(
-    `http://localhost:8000/terms/${encodeURIComponent(termName)}`, // Adds space like "Docker%20registry" to make it URL friendly
+    `http://localhost:8000/terms/${encodeURIComponent(termId)}`,
     {
       method: "DELETE",
       headers: {
@@ -127,10 +86,7 @@ export const deleteTerm = async (termName: string): Promise<DeleteResponse> => {
   );
 
   if (!response.ok) {
-    throw createApiError(
-      response.status,
-      await getApiErrorMessage(response, "Delete failed. Try again."),
-    );
+    throw await readApiError(response, "Delete failed. Try again.");
   }
 
   return await response.json();
