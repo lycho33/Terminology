@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Isolated E2E dependencies and generated reports
+.e2e/
+e2e-artifacts/
