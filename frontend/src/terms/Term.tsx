@@ -419,18 +419,18 @@ const DeleteModal = ({
   );
 };
 
-export const TermList = () => {
+export const TermsList = () => {
   const { term } = useTermContext();
   const { search } = term;
   const terms = search.terms;
 
   return (
     search.isSuccess && (
-      <>
+      <div className="terms-list" aria-label="Matching terms">
         {terms?.map((t) => (
           <BasicTermCard key={`${t.id}-${t.name}`} searchTerm={t.name} />
         ))}
-      </>
+      </div>
     )
   );
 };
@@ -449,8 +449,10 @@ const BasicTermCard = ({ searchTerm }: { searchTerm: string }) => {
       <div className="term-card__topline">
         <span>Term</span>
       </div>
-      <h2 className="term-card__select" onClick={handleClick}>
-        {searchTerm}
+      <h2>
+        <button className="term-card__select" type="button" onClick={handleClick}>
+          {searchTerm}
+        </button>
       </h2>
     </article>
   );

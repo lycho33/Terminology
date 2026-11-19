@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./App.css";
 import { TermProvider } from "./provider";
-import { TermCard, TermList, TermSearchForm } from "./terms/Term";
+import { TermCard, TermsList, TermSearchForm } from "./terms/Term";
 
 const queryClient = new QueryClient();
 
@@ -18,7 +18,7 @@ function App() {
             </div>
 
             <TermSearchForm />
-            <TermList />
+            <TermsList />
             <TermCard />
           </section>
         </main>
