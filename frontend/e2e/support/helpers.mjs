@@ -4,8 +4,7 @@ import { expect } from "@playwright/test";
 export const API = "http://localhost:8000";
 export const termUrl = (name) => `${API}/terms/${encodeURIComponent(name)}`;
 export const newName = (label) => `E2e ${label} ${randomUUID()}`;
-export const normalized = (name) =>
-  name.trim().charAt(0).toUpperCase() + name.trim().slice(1).toLowerCase();
+export const normalized = (name) => name.trim().charAt(0).toUpperCase() + name.trim().slice(1).toLowerCase();
 
 export async function savedTerm(request, label = "term", fields = {}) {
   const name = newName(label);
