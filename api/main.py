@@ -61,6 +61,22 @@ def read_root():
     return {"Hello": "World"}
 
 
+@app.get("/terms/", response_model=list[TermNode])
+def search_terms(q: str, driver: Driver = Depends(get_driver)):
+    rows = query_rows(
+        driver,
+        """
+        MATCH (t:Term)
+        WHERE toLower(t.name) CONTAINS toLower($name)
+        RETURN t.id AS id, t.name AS name, t.definition AS definition, t.diagram AS diagram
+    """,
+        {"name": q.strip()},
+    )
+    if not rows:
+        raise ApiProblem(404, "TERM_NOT_FOUND", "Term not found.")
+    return [TermNode(**row) for row in rows]
+
+
 @app.get("/terms/{term_name:path}")
 def get_term(term_name: str, driver: Driver = Depends(get_driver)):
     rows = query_rows(

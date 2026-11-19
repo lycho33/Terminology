@@ -3,24 +3,28 @@ import { FiMinus } from "react-icons/fi";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { VscChromeClose } from "react-icons/vsc";
 import { fieldMessages, formMessages } from "../api-errors";
-import { ValidationMessages } from "./ValidationMessages";
 import { useTermContext } from "../hooks";
 import type { DeleteModalProps, UpdateFormProps } from "./types";
+import { ValidationMessages } from "./ValidationMessages";
 
 export const TermSearchForm = () => {
   const { term } = useTermContext();
-  const { setTerm, create } = term;
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const { setTerm, create, search } = term;
+  const [lookupTerm, setLookupTerm] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+    setLookupTerm(e.target.value);
   };
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (searchTerm) {
-      setTerm(searchTerm.trim());
+    if (lookupTerm) {
+      // Clear state
+      setTerm("");
+      setLookupTerm("");
+
+      search.setSearchTerm(lookupTerm.trim());
       create.setStatus("inactive");
     }
   };
@@ -32,13 +36,13 @@ export const TermSearchForm = () => {
 
   return (
     <form className="term-search" onSubmit={handleSearchSubmit}>
-      <label htmlFor="term">Lookup term</label>
+      <label htmlFor="term">Search Term</label>
       <div className="term-search__controls">
         <input
           id="term"
           type="text"
           name="term"
-          value={searchTerm}
+          value={lookupTerm}
           onChange={handleChange}
           placeholder="Term"
         />
@@ -412,6 +416,43 @@ const DeleteModal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+export const TermList = () => {
+  const { term } = useTermContext();
+  const { search } = term;
+  const terms = search.terms;
+
+  return (
+    search.isSuccess && (
+      <>
+        {terms?.map((t) => (
+          <BasicTermCard key={`${t.id}-${t.name}`} searchTerm={t.name} />
+        ))}
+      </>
+    )
+  );
+};
+
+const BasicTermCard = ({ searchTerm }: { searchTerm: string }) => {
+  const { term } = useTermContext();
+  const { setTerm, search } = term;
+
+  const handleClick = () => {
+    setTerm(searchTerm);
+    search.setSearchTerm("");
+  };
+
+  return (
+    <article className="term-card term-card--compact">
+      <div className="term-card__topline">
+        <span>Term</span>
+      </div>
+      <h2 className="term-card__select" onClick={handleClick}>
+        {searchTerm}
+      </h2>
+    </article>
   );
 };
 

@@ -8,6 +8,20 @@ type MutationResponse = {
 
 export { isApiError } from "./api-errors";
 
+export const searchTerms = async (
+  partialTermName: string,
+): Promise<Array<Term>> => {
+  const response = await fetch(
+    `http://localhost:8000/terms?q=${partialTermName}`,
+  );
+
+  if (!response.ok) {
+    throw await readApiError(response, "Term lookup failed. Try again.");
+  }
+
+  return await response.json();
+};
+
 // https://tanstack.com/query/latest/docs/framework/react/quick-start
 export const getTerm = async (termName: string): Promise<Term> => {
   const response = await fetch(

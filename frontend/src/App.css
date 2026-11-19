@@ -189,6 +189,27 @@
   width: 100%;
 }
 
+.term-card__select {
+  cursor: pointer;
+}
+
+/* Compact cards that contain only a term heading. */
+.term-card.term-card--compact {
+  min-height: 0;
+  gap: 6px;
+  padding: 16px 20px;
+
+  .term-card__topline {
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: 26px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+}
+
 .term-card__title-row svg {
   color: var(--muted);
   cursor: pointer;

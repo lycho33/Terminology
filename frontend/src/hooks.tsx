@@ -4,7 +4,13 @@ import {
   useQueryClient,
   type QueryObserverResult,
 } from "@tanstack/react-query";
-import { createTerm, deleteTerm, getTerm, updateTerm } from "./actions";
+import {
+  createTerm,
+  deleteTerm,
+  getTerm,
+  searchTerms,
+  updateTerm,
+} from "./actions";
 import { TermContext, type TermContextValue } from "./context";
 import type { Term } from "./terms/types";
 import { useContext } from "react";
@@ -13,10 +19,21 @@ export const useFetchTerm = (
   termName: string,
 ): QueryObserverResult<Term, Error> => {
   return useQuery({
-    queryKey: ["terms", termName],
+    queryKey: ["term", termName],
     queryFn: () => getTerm(termName),
     staleTime: 60 * 1000, // When to refresh to fresh data
     enabled: termName.length > 0,
+  });
+};
+
+export const useSearchTerm = (
+  partialTermName: string,
+): QueryObserverResult<Array<Term>, Error> => {
+  return useQuery({
+    queryKey: ["terms", partialTermName],
+    queryFn: () => searchTerms(partialTermName),
+    staleTime: 60 * 1000, // When to refresh to fresh data
+    enabled: partialTermName.length > 0,
   });
 };
 
