@@ -4,11 +4,15 @@ import os
 import sys
 from neo4j import GraphDatabase
 
+""" E2E Test helper that helps determine if the tests can send queries """
 with GraphDatabase.driver(os.environ['NEO4J_URI'], auth=('', '')) as driver:
     operation = sys.argv[1]
+    """Checks DB connection before starting tests"""
     if operation == 'ready':
         driver.verify_connectivity()
         print(driver.get_server_info().agent)
+
+        """Checks there's a connection between 2 terms in the test before deleted a connected term"""
     elif operation == 'link':
         values = json.load(sys.stdin)
         result = driver.execute_query(

@@ -30,7 +30,7 @@ flowchart LR
 
 ## Requirements
 
-- Node.js 26.12.1 and its npm installation (the CI version).
+- Node.js 24.22.2 and its npm installation (the CI version).
 - Python 3.11.18, available as `python3.11`.
 - Docker Engine 24 or later, running locally. Local verification uses Docker
   Desktop with Engine 29.5.3. The suite does not start Docker Desktop for you.
@@ -39,8 +39,8 @@ flowchart LR
 
 The database image is pinned by digest to the Neo4j 2026.06.0 image used in stage
 one. The image includes both ARM64 and AMD64 builds. This avoids the moving
-`neo4j:latest` tag. Python versions for this suite are in
-`frontend/e2e/requirements.txt`; these do not upgrade the application packages.
+`neo4j:latest` tag. The suite installs the application dependency set from the root
+`requirements.txt`, through `frontend/e2e/requirements.txt`.
 
 ## Run locally
 
@@ -112,7 +112,7 @@ container name in `last-run.json` to inspect and remove only that test instance.
 - **Database readiness failure:** Read `neo4j.log`. Docker needs sufficient memory
   for the temporary database.
 - **Failed test:** Open the report and inspect the trace. Do not hide a failure by
-  skipping the assertion. See `e2e-findings.md` for confirmed application defects.
+  skipping the assertion.
 
 ## CI
 
