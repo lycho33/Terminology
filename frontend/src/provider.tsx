@@ -4,14 +4,25 @@ import {
   useCreateTerm,
   useDeleteTerm,
   useFetchTerm,
+  useSearchTerm,
   useUpdateTerm,
 } from "./hooks";
 import { isApiError } from "./actions";
 
 export const TermProvider = ({ children }: { children: ReactNode }) => {
   const [term, setTerm] = useState<string>("");
-
   const { data, error, isError, isLoading, isSuccess } = useFetchTerm(term);
+
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const {
+    data: terms,
+    error: searchError,
+    isError: isSearchError,
+    isLoading: isLoadingSearch,
+    isSuccess: isLoadingSuccess,
+    isFetching: isFetchingSearch,
+    refetch: refetchSearch,
+  } = useSearchTerm(searchTerm);
 
   const [createStatus, setCreateStatus] =
     useState<CreateStatusEnum>("inactive");
@@ -50,6 +61,23 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             isSuccess,
             errorMessage: error?.message ?? null,
             errorStatus: isApiError(error) ? error.status : null,
+          },
+          search: {
+            name: searchTerm,
+            terms,
+            setSearchTerm,
+            retry: () => {
+              if (searchTerm) void refetchSearch();
+            },
+            isFetching: isFetchingSearch,
+            isError: isSearchError,
+            isLoading: isLoadingSearch,
+            isSuccess: isLoadingSuccess,
+            errorMessage: searchError?.message ?? null,
+            errorStatus: isApiError(searchError) ? searchError.status : null,
+            errorCode: isApiError(searchError)
+              ? searchError.issues[0]?.code ?? null
+              : null,
           },
           create: {
             createTerm,

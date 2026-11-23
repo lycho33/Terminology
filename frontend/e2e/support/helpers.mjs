@@ -21,12 +21,13 @@ export async function readTerm(request, name) {
 }
 export async function lookup(page, name) {
   await page
-    .getByRole("textbox", { name: "Lookup term", exact: true })
+    .getByRole("textbox", { name: "Search Term", exact: true })
     .fill(name);
   await page.getByRole("button", { name: "Search", exact: true }).click();
 }
 export async function showTerm(page, term) {
   await lookup(page, term.name);
+  await page.getByRole("button", { name: term.name, exact: true }).click();
   await expect(
     page.getByRole("heading", { name: term.name, exact: true }),
   ).toBeVisible();

@@ -4,7 +4,11 @@ import type { UpdateTermInput } from "./hooks";
 import type { CreateTermInput, Term } from "./terms/types";
 
 export type CreateStatusEnum =
-  "active" | "inactive" | "pending" | "complete" | "error";
+  | "active"
+  | "inactive"
+  | "pending"
+  | "complete"
+  | "error";
 
 type MutationCallbacks = {
   onSuccess: () => void;
@@ -22,6 +26,19 @@ export type TermContextValue = {
       isSuccess: boolean;
       errorMessage: string | null;
       errorStatus: number | null;
+    };
+    search: {
+      name: string;
+      terms: Array<Term> | undefined;
+      setSearchTerm: (searchName: string) => void;
+      retry: () => void;
+      isFetching: boolean;
+      isError: boolean;
+      isLoading: boolean;
+      isSuccess: boolean;
+      errorMessage: string | null;
+      errorStatus: number | null;
+      errorCode: string | null;
     };
     create: {
       createTerm: (term: CreateTermInput, callbacks: MutationCallbacks) => void;

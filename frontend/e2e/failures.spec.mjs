@@ -6,6 +6,7 @@ import {
   savedTerm,
   readTerm,
   lookup,
+  showTerm,
   openCreate,
   openEdit,
   openDelete,
@@ -40,6 +41,12 @@ for (const operation of ["create", "read", "update", "delete"]) {
     if (operation === "create") await openCreate(page, draft);
     if (operation === "update") await openEdit(page, term);
     if (operation === "delete") await openDelete(page, term);
+    if (operation === "read") {
+      await lookup(page, term.name);
+      await expect(
+        page.getByRole("button", { name: term.name, exact: true }),
+      ).toBeVisible();
+    }
     await simulate(
       page,
       { create: "POST", read: "GET", update: "PATCH", delete: "DELETE" }[
@@ -47,7 +54,8 @@ for (const operation of ["create", "read", "update", "delete"]) {
       ],
       databaseError,
     );
-    if (operation === "read") await lookup(page, term.name);
+    if (operation === "read")
+      await page.getByRole("button", { name: term.name, exact: true }).click();
     else {
       if (operation !== "delete")
         await page
@@ -77,7 +85,7 @@ for (const operation of ["create", "read", "update", "delete"]) {
     await page.unrouteAll({ behavior: "wait" });
     if (operation === "read") {
       await page.reload();
-      await lookup(page, term.name);
+      await showTerm(page, term);
     } else
       await page
         .getByRole("button", {
@@ -217,14 +225,17 @@ test("real API outage: lookup shows failure and recovers after restart", async (
   try {
     await control("api/stop");
     await lookup(page, term.name);
-    await expect(page.getByRole("alert")).toContainText("Lookup failed", {
+    await expect(page.getByRole("alert")).toContainText("Search failed", {
       timeout: 30_000,
     });
   } finally {
     await control("api/start");
   }
-  await page.reload();
-  await lookup(page, term.name);
+  await expect(
+    page.getByRole("textbox", { name: "Search Term", exact: true }),
+  ).toHaveValue(term.name);
+  await page.getByRole("button", { name: "Retry search", exact: true }).click();
+  await page.getByRole("button", { name: term.name, exact: true }).click();
   await expect(
     page.getByRole("heading", { name: term.name, exact: true }),
   ).toBeVisible();
