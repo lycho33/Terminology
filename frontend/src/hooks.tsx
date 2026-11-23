@@ -34,6 +34,7 @@ export const useSearchTerm = (
     queryFn: () => searchTerms(partialTermName),
     staleTime: 60 * 1000, // When to refresh to fresh data
     enabled: partialTermName.length > 0,
+    retry: false, // Show search errors immediately; the user can retry.
   });
 };
 

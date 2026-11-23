@@ -11,15 +11,38 @@ export { isApiError } from "./api-errors";
 export const searchTerms = async (
   partialTermName: string,
 ): Promise<Array<Term>> => {
-  const response = await fetch(
-    `http://localhost:8000/terms?q=${partialTermName}`,
-  );
-
-  if (!response.ok) {
-    throw await readApiError(response, "Term lookup failed. Try again.");
+  let response: Response;
+  try {
+    response = await fetch(
+      `http://localhost:8000/terms/?${new URLSearchParams({ q: partialTermName })}`,
+    );
+  } catch {
+    throw new Error("Unable to reach the search service. Try again.");
   }
 
-  return await response.json();
+  if (!response.ok) {
+    throw await readApiError(response, "Search failed. Try again.");
+  }
+
+  let terms: unknown;
+  try {
+    terms = await response.json();
+  } catch {
+    throw new Error("The search service returned an invalid response. Try again.");
+  }
+  if (
+    !Array.isArray(terms) ||
+    !terms.every(
+      (term) =>
+        typeof term === "object" &&
+        term !== null &&
+        typeof term.id === "string" &&
+        typeof term.name === "string",
+    )
+  ) {
+    throw new Error("The search service returned an invalid response. Try again.");
+  }
+  return terms;
 };
 
 // https://tanstack.com/query/latest/docs/framework/react/quick-start

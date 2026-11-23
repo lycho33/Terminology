@@ -28,13 +28,17 @@ export type TermContextValue = {
       errorStatus: number | null;
     };
     search: {
+      name: string;
       terms: Array<Term> | undefined;
       setSearchTerm: (searchName: string) => void;
+      retry: () => void;
+      isFetching: boolean;
       isError: boolean;
       isLoading: boolean;
       isSuccess: boolean;
       errorMessage: string | null;
       errorStatus: number | null;
+      errorCode: string | null;
     };
     create: {
       createTerm: (term: CreateTermInput, callbacks: MutationCallbacks) => void;

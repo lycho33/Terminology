@@ -71,9 +71,9 @@ test("real-stack: missing lookup is distinct from a server failure", async ({
 }) => {
   await lookup(page, newName("missing"));
   await expect(
-    page.getByText("No term card is available for this lookup yet."),
+    page.getByRole("status").filter({ hasText: "No terms match" }),
   ).toBeVisible();
-  await expect(page.getByText("Lookup failed", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
 test("real-stack: duplicate creation is rejected without overwriting data", async ({
@@ -215,7 +215,7 @@ test("real-stack: cancel then confirm deletion, including attached relationships
   await page.reload();
   await lookup(page, term.name);
   await expect(
-    page.getByText("No term card is available for this lookup yet."),
+    page.getByRole("status").filter({ hasText: "No terms match" }),
   ).toBeVisible();
 });
 

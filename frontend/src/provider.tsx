@@ -20,6 +20,8 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
     isError: isSearchError,
     isLoading: isLoadingSearch,
     isSuccess: isLoadingSuccess,
+    isFetching: isFetchingSearch,
+    refetch: refetchSearch,
   } = useSearchTerm(searchTerm);
 
   const [createStatus, setCreateStatus] =
@@ -61,13 +63,21 @@ export const TermProvider = ({ children }: { children: ReactNode }) => {
             errorStatus: isApiError(error) ? error.status : null,
           },
           search: {
+            name: searchTerm,
             terms,
             setSearchTerm,
+            retry: () => {
+              if (searchTerm) void refetchSearch();
+            },
+            isFetching: isFetchingSearch,
             isError: isSearchError,
             isLoading: isLoadingSearch,
             isSuccess: isLoadingSuccess,
             errorMessage: searchError?.message ?? null,
             errorStatus: isApiError(searchError) ? searchError.status : null,
+            errorCode: isApiError(searchError)
+              ? searchError.issues[0]?.code ?? null
+              : null,
           },
           create: {
             createTerm,

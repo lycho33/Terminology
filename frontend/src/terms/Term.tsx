@@ -11,25 +11,32 @@ export const TermSearchForm = () => {
   const { term } = useTermContext();
   const { setTerm, create, search } = term;
   const [lookupTerm, setLookupTerm] = useState<string>("");
+  const [searchValidation, setSearchValidation] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLookupTerm(e.target.value);
+    setSearchValidation("");
   };
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (lookupTerm) {
-      // Clear state
-      setTerm("");
-      setLookupTerm("");
-
-      search.setSearchTerm(lookupTerm.trim());
-      create.setStatus("inactive");
+    if (search.isFetching) return;
+    const query = lookupTerm.trim();
+    if (!query) {
+      setSearchValidation("Enter a term to search.");
+      return;
     }
+    setSearchValidation("");
+    setTerm("");
+    if (query === search.name) search.retry();
+    else search.setSearchTerm(query);
+    create.setStatus("inactive");
   };
 
   const handleSubmitClick = () => {
+    search.setSearchTerm("");
+    setSearchValidation("");
     create.resetError();
     create.setStatus("active");
   };
@@ -45,8 +52,12 @@ export const TermSearchForm = () => {
           value={lookupTerm}
           onChange={handleChange}
           placeholder="Term"
+          aria-invalid={Boolean(searchValidation)}
+          aria-describedby={searchValidation ? "search-term-error" : undefined}
         />
-        <button type="submit">Search</button>
+        <button type="submit" disabled={search.isFetching}>
+          {search.isFetching ? "Searching..." : "Search"}
+        </button>
         <button
           aria-label="Create term"
           className="term-search__create-button"
@@ -56,6 +67,10 @@ export const TermSearchForm = () => {
           <MdAdd aria-hidden="true" />
         </button>
       </div>
+      <ValidationMessages
+        id="search-term-error"
+        messages={searchValidation ? [searchValidation] : []}
+      />
     </form>
   );
 };
@@ -424,6 +439,45 @@ export const TermsList = () => {
   const { search } = term;
   const terms = search.terms;
 
+  if (!search.name) return null;
+  if (search.isFetching)
+    return (
+      <p className="term-search__feedback" role="status">
+        Searching...
+      </p>
+    );
+
+  const noMatches =
+    (search.errorStatus === 404 && search.errorCode === "TERM_NOT_FOUND") ||
+    (search.isSuccess && terms?.length === 0);
+  if (noMatches)
+    return (
+      <p className="term-search__feedback" role="status">
+        No terms match “{search.name}”. Try a different search.
+      </p>
+    );
+
+  if (search.isError)
+    return (
+      <div className="term-search__feedback term-search__feedback--error">
+        <div role="alert">
+          <p>
+            <strong>Search failed</strong>
+          </p>
+          <p>
+            {search.errorMessage ?? "Unable to search for terms. Try again."}
+          </p>
+        </div>
+        <button
+          className="term-search__retry"
+          type="button"
+          onClick={search.retry}
+        >
+          Retry search
+        </button>
+      </div>
+    );
+
   return (
     search.isSuccess && (
       <div className="terms-list" aria-label="Matching terms">
@@ -450,7 +504,11 @@ const BasicTermCard = ({ searchTerm }: { searchTerm: string }) => {
         <span>Term</span>
       </div>
       <h2>
-        <button className="term-card__select" type="button" onClick={handleClick}>
+        <button
+          className="term-card__select"
+          type="button"
+          onClick={handleClick}
+        >
           {searchTerm}
         </button>
       </h2>

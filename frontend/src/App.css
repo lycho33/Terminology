@@ -196,6 +196,44 @@
   min-width: 0;
 }
 
+.term-search__feedback {
+  margin-block: 18px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.term-search__feedback--error {
+  display: grid;
+  gap: 12px;
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.term-search__retry {
+  justify-self: start;
+  padding: 8px 14px;
+  min-height: 44px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--button-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.term-search__retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.term-search button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 /* Compact cards that contain only a term heading. */
 .term-card.term-card--compact {
   min-height: 0;

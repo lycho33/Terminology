@@ -51,6 +51,35 @@ class ApiTests(unittest.TestCase):
             self.driver.execute_query.call_args.kwargs["parameters_"], {"name": "A/b"}
         )
 
+    def test_partial_search_returns_list_and_parameterizes_trimmed_query(self):
+        terms = [
+            dict(id="a1", name="Graph", definition=None, diagram=None),
+            dict(id="a2", name="Graph database", definition="Example", diagram=None),
+        ]
+        self.driver.execute_query.return_value = result(*terms)
+        query = "GrApH & ?#'"
+        response = self.client.get("/terms/", params={"q": f"  {query}  "})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), terms)
+        call = self.driver.execute_query.call_args
+        self.assertEqual(call.kwargs["parameters_"], {"name": query})
+        self.assertNotIn(query, call.args[0])
+
+    def test_partial_search_no_matches_has_stable_code(self):
+        response = self.client.get("/terms/", params={"q": "missing"})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json()["errors"][0],
+            {"code": "TERM_NOT_FOUND", "field": None, "message": "Term not found."},
+        )
+
+    def test_partial_search_requires_query_before_database_access(self):
+        response = self.client.get("/terms/")
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["errors"][0]["code"], "FIELD_REQUIRED")
+        self.assertEqual(response.json()["errors"][0]["field"], "q")
+        self.driver.execute_query.assert_not_called()
+
     def test_missing_lookup_and_update(self):
         for method, kwargs in [("get", {}), ("patch", {"json": {"name": "new"}})]:
             with self.subTest(method=method):
@@ -180,6 +209,7 @@ class ApiTests(unittest.TestCase):
             self.driver.execute_query.side_effect = exc
             for method, path, kwargs in [
                 ("get", "/terms/a", {}),
+                ("get", "/terms/", {"params": {"q": "a"}}),
                 ("post", "/terms/", {"json": {"name": "a"}}),
                 ("patch", "/terms/a", {"json": {"name": "a"}}),
                 ("delete", "/terms/a", {}),
