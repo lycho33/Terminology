@@ -12,11 +12,7 @@ from pathlib import Path
 
 from pydantic_core import PydanticCustomError
 
-FORMAT = json.loads(
-    (
-        Path(__file__).resolve().parents[1] / "frontend/src/diagram/format.json"
-    ).read_text()
-)
+FORMAT_PATH = Path(__file__).resolve().parents[1] / "frontend/src/diagram/format.json"
 ID = re.compile(r"[A-Za-z_][A-Za-z0-9_.:-]{0,127}\Z")
 NUMBER = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
 NUMERIC = set(
@@ -76,10 +72,13 @@ def numbers(value):
 def validate_svg(source: str) -> str:
     if source == "":
         return source
+    # Compose mounts the shared directory. Read once per validation so edits
+    # are visible without a Python restart or an image rebuild.
+    format_rules = json.loads(FORMAT_PATH.read_text(encoding="utf-8"))
     # Match JavaScript's UTF-16 length, including non-BMP characters.
     if (
         len(source.encode("utf-16-le", errors="surrogatepass")) // 2
-        > FORMAT["maxLength"]
+        > format_rules["maxLength"]
     ):
         invalid()
     if re.search(r"<!|<\?", re.sub(r"<!--[\s\S]*?-->", "", source)):
@@ -88,28 +87,28 @@ def validate_svg(source: str) -> str:
         root = ET.fromstring(source)
     except (ET.ParseError, ValueError, UnicodeError):
         invalid()
-    ns = "{" + FORMAT["namespace"] + "}"
-    if root.tag != ns + "svg" or len(list(root.iter())) > FORMAT["maxElements"]:
+    ns = "{" + format_rules["namespace"] + "}"
+    if root.tag != ns + "svg" or len(list(root.iter())) > format_rules["maxElements"]:
         invalid()
     ids, markers, references = set(), set(), []
 
     def visit(el, parent=None, depth=0):
         if (
-            depth > FORMAT["maxDepth"]
+            depth > format_rules["maxDepth"]
             or not isinstance(el.tag, str)
             or not el.tag.startswith(ns)
         ):
             invalid()
         tag = el.tag[len(ns) :]
         if (
-            tag not in FORMAT["attributes"]
+            tag not in format_rules["attributes"]
             or parent is not None
-            and tag not in FORMAT["children"].get(parent, [])
+            and tag not in format_rules["children"].get(parent, [])
         ):
             invalid()
-        if set(el.attrib) - set(FORMAT["attributes"][tag]):
+        if set(el.attrib) - set(format_rules["attributes"][tag]):
             invalid()
-        if not set(FORMAT["required"].get(tag, [])).issubset(el.attrib):
+        if not set(format_rules["required"].get(tag, [])).issubset(el.attrib):
             invalid()
         if tag not in {"title", "desc", "text"} and (el.text or "").strip():
             invalid()

@@ -92,5 +92,9 @@ No raw pasted markup is inserted into the document. Marker and accessibility
 references are scoped together so multiple previews do not share IDs.
 
 The original source remains the persistence value. Keep the existing TermNode,
-HTTP payload, and database queries as string contracts. The API Docker image
-includes the shared format file and must be rebuilt when the format changes.
+HTTP payload, and database queries as string contracts. The API Docker image includes the shared format file. In development, Compose
+mounts the shared diagram directory read-only beside the live API code. The
+validator reads the rules once per validation, so edits to the rules are visible
+without a Python restart. Recreate an existing API container once to apply the
+new mount: `docker compose up -d --no-deps api`. Standalone images without these
+development mounts still need a rebuild when bundled rules change.

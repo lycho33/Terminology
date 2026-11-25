@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import patch, MagicMock
 from types import SimpleNamespace
 
@@ -18,6 +19,22 @@ SVG = (ROOT / "docs/skill-graph/examples/connected-shapes.svg").read_text()
 
 
 class SvgValidationTests(unittest.TestCase):
+    def test_shared_format_changes_apply_without_restarting_the_validator(self):
+        rules = json.loads((ROOT / "frontend/src/diagram/format.json").read_text())
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "format.json"
+            path.write_text(json.dumps(rules))
+            with patch("api.svg_diagram.FORMAT_PATH", path):
+                self.assertEqual(validate_svg(SVG), SVG)
+                # Match an editor's atomic save: replace the file, not its inode.
+                replacement = Path(directory) / "replacement.json"
+                replacement.write_text(json.dumps({**rules, "maxDepth": 1}))
+                replacement.replace(path)
+                with self.assertRaises(PydanticCustomError):
+                    validate_svg(SVG)
+                path.write_text(json.dumps(rules))
+                self.assertEqual(validate_svg(SVG), SVG)
+
     def test_shared_format_cases(self):
         for case in CASES:
             with self.subTest(case=case["name"]):

@@ -3,14 +3,14 @@
 ## State
 
 - Started: 2026-11-23. Last updated: 2026-11-25.
-- Current role: UI Verifier.
-- Stage: Revised SC-1 dark-mode evidence ready; waiting for user review.
+- Current role: UI Verifier (user retry of repaired API).
+- Stage: API runtime repaired; waiting for the user to retry the open update.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Wait for the user response to the revised toolbar in SC-1.
-  Do not start SC-2 yet.
-- Implementation: Current code committed as `d63d894fa48fd3ace92e8bc29ad24586dcd65de6`.
+- Next action: Wait for the user to retry Update.
+  Preserve pending scenario review; do not advance to SC-2.
+- Implementation: SVG and toolbar changes committed; Docker repair recorded below.
 - PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
 ## Known Knowns
@@ -701,3 +701,41 @@ flowchart LR
   and 390px layout assertions passed. The system inspected the current screenshot.
 - Temporary database cleanup passed. No user service was restarted.
 - User review: Pending response to this revised appearance. Do not start SC-2.
+
+
+## Runtime repair: stale Docker format rules
+
+The user reported a failed Update with `KeyError: maxDepth` at
+`api/svg_diagram.py:98`. The running container had only the `/api` bind mount.
+Its image-held `/frontend/src/diagram/format.json` lacked maxDepth and allowed
+only the original root attributes. The browser and mounted Python code had
+newer rules. This was a packaging mismatch, not malformed user SVG.
+
+Fix:
+- Mount `./frontend/src/diagram` read-only at `/frontend/src/diagram` for the API
+  service. A directory mount also sees atomic file replacement by editors.
+- Read format rules once per nonempty validation, instead of caching the image's
+  rules at Python import. Do not supply a fallback maxDepth: that would leave
+  the other stale rules in effect.
+- Keep Dockerfile COPY for standalone images. Update development documentation.
+- AC-15: running Compose API uses the same current rules as the frontend; a rule
+  file replacement takes effect without restarting the validator.
+
+Verification and applied repair:
+- Local API suite: 19 passed, 1 optional database test skipped.
+- Disposable Compose API container with the existing image and corrected mounts:
+  all 3 SVG tests passed. POST/PATCH cases use mocked database access; they do
+  not write to the user's database. The new test replaces the rules file, proves
+  the changed depth limit applies, restores it, and proves validation recovers.
+- `docker compose up -d --no-deps api`: recreated only fastapi-api to apply the
+  corrected mount. Browser and Neo4j services were not restarted. No image build
+  or orphan-container cleanup was performed.
+- Running API inspection: shared diagram directory mounted read-only; maxDepth
+  is 20; supplied Docker SVG validates with exact source preservation.
+- API health: HTTP 200. No term was changed during the repair or its checks.
+- cmux access was requested to retry the user's open form. Access was not granted.
+  The system did not operate the form or retry through another UI tool. The user
+  asked why access was needed; the system explained it was only for UI retry and
+  continued the API repair without cmux.
+- The actual unsaved update remains unverified until the user retries it. Do not
+  claim that the user's term was saved. Prior scenario reviews remain pending.
