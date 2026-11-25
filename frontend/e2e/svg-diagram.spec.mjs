@@ -422,3 +422,83 @@ test("SC-1 SVG: ordinary Docker source saves unchanged and supports view control
   ).toBe(true);
   await evidence(page, info, "docker-narrow-preview");
 });
+
+for (const colorScheme of ["light", "dark"]) {
+  test(`SC-1 SVG: compact toolbar and footnote in ${colorScheme} mode`, async ({
+    page,
+  }, info) => {
+    await page.emulateMedia({ colorScheme });
+    await openCreate(page, "Docker image example");
+    await sourceInput(page).fill(dockerSvg);
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    const names = [
+      "Code",
+      "Preview",
+      "Copy SVG",
+      "Zoom in",
+      "Zoom out",
+      "Reset view",
+    ];
+    const checkRow = async () => {
+      const boxes = await Promise.all(
+        names.map((name) =>
+          page.getByRole("button", { name, exact: true }).boundingBox(),
+        ),
+      );
+      expect(boxes.every(Boolean)).toBe(true);
+      const centers = boxes.map((box) => box.y + box.height / 2);
+      expect(Math.max(...centers) - Math.min(...centers)).toBeLessThan(2);
+    };
+    await checkRow();
+    for (const name of ["Copy SVG", "Zoom in", "Zoom out"]) {
+      const button = page.getByRole("button", { name, exact: true });
+      await expect(button).toHaveText("");
+      await expect(button.locator("svg[aria-hidden=true]")).toHaveCount(1);
+      await expect(button).toHaveAttribute("title", name);
+    }
+    const canvas = await page.locator(".diagram__canvas").boundingBox();
+    const hint = await page.locator(".diagram__hint").boundingBox();
+    expect(hint.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+    const zoom = page.getByRole("button", { name: "Zoom in", exact: true });
+    await expect(zoom).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await zoom.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(zoom).toBeFocused();
+    await expect(zoom).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("[data-viewport]")).toHaveAttribute(
+      "transform",
+      /scale\(1.25\)/,
+    );
+    await page.getByRole("button", { name: "Zoom out", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("[data-viewport]")).toHaveAttribute(
+      "transform",
+      /scale\(1\)/,
+    );
+    // Leave the toolbar unfocused so screenshots show its normal appearance.
+    await page.getByRole("button", { name: "Create", exact: true }).focus();
+    await evidence(page, info, `toolbar-${colorScheme}`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await checkRow();
+    expect(
+      await page.evaluate(
+        () =>
+          globalThis.document.documentElement.scrollWidth <=
+          globalThis.innerWidth,
+      ),
+    ).toBe(true);
+    await evidence(page, info, `toolbar-${colorScheme}-narrow`);
+    await page.getByRole("button", { name: "Code", exact: true }).click();
+    await expect(sourceInput(page)).toHaveValue(dockerSvg);
+    const colors = await sourceInput(page).evaluate((el) => ({
+      text: globalThis.getComputedStyle(el).color,
+      background: globalThis.getComputedStyle(el).backgroundColor,
+    }));
+    expect(colors.text).not.toBe(colors.background);
+    if (colorScheme === "dark")
+      expect(colors.background).not.toBe("rgb(255, 255, 255)");
+    await evidence(page, info, `code-${colorScheme}-narrow`);
+  });
+}

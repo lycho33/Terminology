@@ -63,7 +63,10 @@ produces an error.
 
 ## Controls and persistence
 
-Use Zoom in and Zoom out to change the scale. Drag the background to pan. For
+Use the plus and minus buttons to change the scale. Use the copy icon to copy
+the source. These icons have accessible names and tooltips. The controls share
+one row with Code/Preview and Reset. Help text appears below the image.
+The controls and code input follow the app light/dark theme. Drag the background to pan. For
 an ordinary SVG, drag anywhere to pan. Reset view restores the initial view.
 For annotated diagrams, drag a shape to move it temporarily, or select it for
 details. Tab focuses each movable group; arrow keys move it by 10 SVG units.

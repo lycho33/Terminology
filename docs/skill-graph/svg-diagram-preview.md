@@ -3,13 +3,13 @@
 ## State
 
 - Started: 2026-11-23. Last updated: 2026-11-25.
-- Current role: UI Verifier.
-- Stage: Corrected SC-1 evidence ready; waiting for user review.
+- Current role: Implementer (toolbar correction).
+- Stage: Toolbar checks passed; PR/report handoff in progress.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Wait for the user response to the corrected SC-1 preview.
-  Do not start SC-2 yet.
+- Next action: Verify the toolbar in light and dark mode, update PR/report, and
+  repeat SC-1. Do not start SC-2 yet.
 - Implementation: Current code committed as `e316ebbefb81ff52e1f2bfbe362204ce89c7b904`.
 - PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
@@ -627,3 +627,60 @@ shared format file; no user service was restarted by this task.
 - To load these changes in the user's Docker API, run
   `docker compose up -d --build --no-deps api` from the repository. This recreates
   that API container. The system did not execute it or restart user services.
+
+
+## UI correction: toolbar, dark mode, and help text
+
+User feedback: controls stand out too much and do not fit dark mode. Align zoom
+and reset with Code/Preview/Copy. Use plus/minus icons for zoom and a copy icon.
+Move the help sentence below the SVG as a footnote.
+
+Implementation: reuse theme variables from `frontend/src/index.css:1` and the
+quiet icon-button pattern in `frontend/src/App.css:308`. `DiagramViewer` supplies
+its local view controls to the shared header through a render callback. View
+state remains local; source and save behavior do not change. Icons use the
+existing react-icons package and keep accessible names and title tooltips.
+The help text follows the canvas. Code input, borders, controls, and details use
+app theme colors. Source-defined SVG artwork colors are preserved.
+
+- AC-13: Code, Preview, Copy, zoom, and Reset share one horizontal row at desktop
+  and the 390px test viewport. Controls are quiet and readable in both themes.
+- AC-14: plus/minus/copy use icons with accessible names; keyboard zoom works;
+  help text is below the image. Exact source survives mode switches.
+- SC-1 adds light/dark toolbar cases, successful screenshots, and narrow-layout
+  checks. The previous screenshot is not evidence for the changed UI.
+- Planned checks: build, lint, all SVG browser scenarios in both engines, and a
+  focused SC-1 dark-mode review. No API or persistence code changed.
+- User review remains pending. This feedback does not accept SC-1 or advance to
+  SC-2.
+
+
+### Toolbar verification
+
+- `npm run build --prefix frontend`: passed.
+- `npm run lint --prefix frontend`: passed.
+- `npm run test:e2e --prefix frontend -- --grep 'SC-[1-9] SVG:'`:
+  20 existing SVG checks passed in `run-NzgtcV`. Four new theme checks failed
+  because the test expected keyboard focus styling after script-only focus.
+- Corrected those tests to navigate with Tab/Shift+Tab before asserting the
+  focus outline. No application change was needed for this test correction.
+- `npm run test:e2e --prefix frontend -- --grep 'SC-1 SVG: compact toolbar'`:
+  all 4 light/dark checks passed across Chromium and WebKit in `run-3b9txH`.
+- AC-13 and AC-14: passed. Assertions cover one-row alignment at desktop and
+  390px widths, icon names/tooltips, keyboard zoom and focus, hint position,
+  source preservation, and dark code-input appearance.
+- Both runs removed their disposable containers without cleanup failures.
+  Results and cleanup records are in the corresponding `frontend/e2e-artifacts/`
+  run folders. Earlier full-suite and API results are historical; the latest
+  run scope is the changed SVG UI. No API code changed for this correction.
+- Inspected current light desktop, dark desktop, and dark narrow screenshots.
+  No comparable dark-mode before image is available. No pixel-difference claim.
+- `git diff --check`: passed. User review remains pending at SC-1.
+
+```mermaid
+flowchart LR
+    viewer["DiagramViewer: local zoom and reset"] -->|"Render controls"| header["DiagramField: shared header row"]
+    theme["Existing light/dark variables"] --> css["diagram.css: quiet controls and themed fields"]
+    header --> css
+    viewer --> footnote["Help text below SVG"]
+```

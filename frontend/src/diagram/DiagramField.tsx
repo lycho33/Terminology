@@ -13,6 +13,7 @@ import {
   type Diagram,
   type SvgElement,
 } from "./svg-format";
+import { FiCopy, FiMinus, FiPlus } from "react-icons/fi";
 import { ValidationMessages } from "../terms/ValidationMessages";
 import "./diagram.css";
 
@@ -37,7 +38,13 @@ const reactAttributes: Record<string, string> = {
   "text-anchor": "textAnchor",
 };
 
-function DiagramViewer({ diagram }: { diagram: Diagram }) {
+function DiagramViewer({
+  diagram,
+  renderHeader,
+}: {
+  diagram: Diagram;
+  renderHeader: (controls: ReactNode) => ReactNode;
+}) {
   const prefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const svg = useRef<SVGSVGElement>(null);
   const content = useRef<SVGGElement>(null);
@@ -196,35 +203,45 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
   };
   return (
     <>
-      <div
-        className="diagram__toolbar"
-        role="group"
-        aria-label="Diagram view controls"
-      >
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
-          disabled={zoom >= 4}
+      {renderHeader(
+        <div
+          className="diagram__toolbar"
+          role="group"
+          aria-label="Diagram view controls"
         >
-          Zoom in
-        </button>
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
-          disabled={zoom <= 0.25}
-        >
-          Zoom out
-        </button>
-        <span aria-live="polite">{Math.round(zoom * 100)}%</span>
-        <button type="button" onClick={reset}>
-          Reset view
-        </button>
-      </div>
-      <p className="diagram__hint">
-        {diagram.interactive
-          ? "Drag the background to move the view. Drag a shape to move it temporarily. Select a shape for details; use arrow keys to move a focused shape."
-          : "Drag anywhere to move the view. Individual shape movement is not available for this SVG."}
-      </p>
+          <button
+            type="button"
+            className="diagram__icon-button"
+            aria-label="Zoom in"
+            title="Zoom in"
+            onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+            disabled={zoom >= 4}
+          >
+            <FiPlus aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="diagram__icon-button"
+            aria-label="Zoom out"
+            title="Zoom out"
+            onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
+            disabled={zoom <= 0.25}
+          >
+            <FiMinus aria-hidden="true" />
+          </button>
+          <span className="diagram__zoom" aria-live="polite">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={reset}
+            aria-label="Reset view"
+            title="Reset view"
+          >
+            Reset
+          </button>
+        </div>,
+      )}
       <svg
         {...attributes(diagram.attrs)}
         width="100%"
@@ -252,6 +269,11 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
           {diagram.elements.map(render)}
         </g>
       </svg>
+      <p className="diagram__hint">
+        {diagram.interactive
+          ? "Drag the background to move the view. Drag a shape to move it temporarily. Select a shape for details; use arrow keys to move a focused shape."
+          : "Drag anywhere to move the view. Individual shape movement is not available for this SVG."}
+      </p>
       {chosen && (
         <section
           className="diagram__details"
@@ -305,10 +327,10 @@ export function DiagramField({
       setCopyMessage("Copy failed. Select the SVG code and copy it manually.");
     }
   };
-  return (
-    <div className="diagram">
-      <div className="diagram__header">
-        <label htmlFor={id}>Diagram</label>
+  const renderHeader = (viewControls?: ReactNode) => (
+    <div className="diagram__header">
+      <label htmlFor={id}>Diagram</label>
+      <div className="diagram__controls">
         <div
           className="diagram__toolbar"
           role="group"
@@ -330,11 +352,32 @@ export function DiagramField({
           >
             Preview
           </button>
-          <button type="button" onClick={copy} disabled={disabled || !value}>
-            Copy SVG
+          <button
+            type="button"
+            className="diagram__icon-button"
+            onClick={copy}
+            disabled={disabled || !value}
+            aria-label="Copy SVG"
+            title="Copy SVG"
+          >
+            <FiCopy aria-hidden="true" />
           </button>
         </div>
+        {viewControls}
       </div>
+    </div>
+  );
+  return (
+    <div className="diagram">
+      {mode === "preview" && parsed.diagram ? (
+        <DiagramViewer
+          key={value}
+          diagram={parsed.diagram}
+          renderHeader={renderHeader}
+        />
+      ) : (
+        renderHeader()
+      )}
       {mode === "code" && (
         <textarea
           id={id}
@@ -354,9 +397,6 @@ export function DiagramField({
         />
       )}
       <ValidationMessages id={messageId} messages={messages} />
-      {mode === "preview" && parsed.diagram && (
-        <DiagramViewer key={value} diagram={parsed.diagram} />
-      )}
       {mode === "preview" && !value && <p>No diagram saved yet.</p>}
       {mode === "preview" && parsed.error && (
         <p>Select Code to inspect, copy, or correct the diagram.</p>
