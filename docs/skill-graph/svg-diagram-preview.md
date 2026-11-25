@@ -3,14 +3,14 @@
 ## State
 
 - Started: 2026-11-23. Last updated: 2026-11-25.
-- Current role: Implementer (ordinary SVG correction).
-- Stage: Revised automated checks passed; PR and report update in progress.
+- Current role: UI Verifier.
+- Stage: Corrected SC-1 evidence ready; waiting for user review.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Verify the correction, update PR and HTML, then repeat SC-1 with
-  the supplied Docker SVG. Do not start SC-2 yet.
-- Implementation: Committed as `b137a1086403a52ff3b79962f7c1e777d09e0491`.
+- Next action: Wait for the user response to the corrected SC-1 preview.
+  Do not start SC-2 yet.
+- Implementation: Current code committed as `e316ebbefb81ff52e1f2bfbe362204ce89c7b904`.
 - PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
 ## Known Knowns
@@ -600,3 +600,30 @@ The API Docker image and HTML quiz runtime remain unverified. The local browser
 tool again rejected file navigation to the HTML report. Current HTML: `/tmp/2026-11-25-explanation-svg-diagram-preview.html`.
 Static HTML validation passed. The user's running API container needs a rebuild to include the changed
 shared format file; no user service was restarted by this task.
+
+
+## Current UI review: corrected SC-1
+
+- Current code: `e316ebbefb81ff52e1f2bfbe362204ce89c7b904`.
+- PR #14 updated with the ordinary-SVG behavior and test-isolation correction.
+- Current HTML: `/tmp/2026-11-25-explanation-svg-diagram-preview.html`.
+  The static validator passed. Browser and quiz runtime remain unverified.
+- Setup: fresh isolated stack, original Docker SVG from the user's report.
+- Actions: paste, preview, zoom, pan, reset, return to Code, save, reopen, and
+  submit an edit without rewriting the source. The current review image shows
+  the preview before the first save; no earlier-image baseline is available.
+- Expected and observed: all labels, colors, and arrows appear. Individual shape
+  controls are absent. Dragging pans the whole view. No write occurs merely by
+  previewing. Create/update/read preserve the entered source exactly.
+- Command: `npm run test:e2e --prefix frontend -- --project=chromium --grep 'SC-1 SVG: ordinary Docker'`.
+- Result: exactly 1 selected and 1 passed. Real isolated API and Neo4j services;
+  no simulated responses. Cleanup removed the temporary container without errors.
+- Evidence: `frontend/e2e-artifacts/run-GUeDlO/results.json`, `cleanup.json`, and
+  `frontend/e2e-artifacts/run-GUeDlO/test-results/svg-diagram-SC-1-SVG-ordin-f69fe--and-supports-view-controls-chromium/docker-preview-before-save.png`.
+- The system inspected this screenshot and the full-run narrow layout screenshot.
+- User review: Pending. No response to the corrected screenshot yet. The user's
+  requirement clarification is not a UI acceptance. Next scenario after acceptance:
+  SC-2. Do not advance before the response.
+- To load these changes in the user's Docker API, run
+  `docker compose up -d --build --no-deps api` from the repository. This recreates
+  that API container. The system did not execute it or restart user services.
