@@ -5,6 +5,7 @@ The test creates the normal constraint and temporary terms with unique names.
 """
 
 import os
+from pathlib import Path
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -14,6 +15,8 @@ from fastapi.testclient import TestClient
 from neo4j import GraphDatabase
 
 from api.main import app
+
+SVG = (Path(__file__).resolve().parents[1] / "docs/skill-graph/examples/connected-shapes.svg").read_text()
 
 
 @unittest.skipUnless(
@@ -36,7 +39,7 @@ class Neo4jIntegrationTests(unittest.TestCase):
                 )
                 created = client.post(
                     "/terms/",
-                    json={"name": first, "definition": "Before", "diagram": "A -> B"},
+                    json={"name": first, "definition": "Before", "diagram": SVG},
                 )
                 self.assertEqual(created.status_code, 201, created.text)
                 original = client.get(f"/terms/{first}").json()
@@ -57,7 +60,7 @@ class Neo4jIntegrationTests(unittest.TestCase):
                 )
                 updated = client.patch(
                     f"/terms/{first}",
-                    json={"name": renamed, "definition": "", "diagram": "B -> C"},
+                    json={"name": renamed, "definition": "", "diagram": SVG.replace("Client", "Browser")},
                 )
                 self.assertEqual(updated.status_code, 200, updated.text)
                 self.assertEqual(client.get(f"/terms/{first}").status_code, 404)
@@ -68,7 +71,7 @@ class Neo4jIntegrationTests(unittest.TestCase):
                         id=original["id"],
                         name=renamed.capitalize(),
                         definition="",
-                        diagram="B -> C",
+                        diagram=SVG.replace("Client", "Browser"),
                     ),
                 )
                 self.assertEqual(

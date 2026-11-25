@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   API,
+  exampleSvg,
   termUrl,
   newName,
   normalized,
@@ -50,14 +51,14 @@ test("real-stack: trim, normalize, and preserve Unicode and URL-sensitive names"
     .fill("  Saved definition  ");
   await page
     .getByRole("textbox", { name: "Diagram", exact: true })
-    .fill("  A -> B  ");
+    .fill(`  ${exampleSvg}  `);
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   const saved = await readTerm(request, name);
   expect(saved).toMatchObject({
     name,
     definition: "Saved definition",
-    diagram: "A -> B",
+    diagram: `  ${exampleSvg}  `,
   });
   await page.reload();
   await showTerm(page, saved);
@@ -103,7 +104,7 @@ test("real-stack: rename and edit preserve the ID; clear optional text", async (
 }) => {
   const term = await savedTerm(request, "before", {
     definition: "Before",
-    diagram: "Old",
+    diagram: exampleSvg,
   });
   const name = newName("after");
   await openEdit(page, term);
@@ -113,14 +114,14 @@ test("real-stack: rename and edit preserve the ID; clear optional text", async (
   await page
     .getByRole("textbox", { name: "Definition", exact: true })
     .fill("After");
-  await page.getByRole("textbox", { name: "Diagram", exact: true }).fill("New");
+  await page.getByRole("textbox", { name: "Diagram", exact: true }).fill(exampleSvg.replaceAll("Client", "Browser"));
   await page.getByRole("button", { name: "Update", exact: true }).click();
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   expect(await readTerm(request, name)).toEqual({
     ...term,
     name,
     definition: "After",
-    diagram: "New",
+    diagram: exampleSvg.replaceAll("Client", "Browser"),
   });
   expect((await request.get(termUrl(term.name))).status()).toBe(404);
   await openEdit(page, { ...term, name });

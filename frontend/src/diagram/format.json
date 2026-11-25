@@ -1,0 +1,71 @@
+{
+  "namespace": "http://www.w3.org/2000/svg",
+  "version": "1",
+  "maxLength": 100000,
+  "maxElements": 500,
+  "attributes": {
+    "svg": ["viewBox", "data-diagram-version"],
+    "title": [],
+    "desc": [],
+    "defs": [],
+    "marker": [
+      "id",
+      "viewBox",
+      "refX",
+      "refY",
+      "markerWidth",
+      "markerHeight",
+      "orient"
+    ],
+    "path": ["d", "fill", "stroke", "stroke-width"],
+    "g": ["id", "data-node", "transform"],
+    "rect": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "rx",
+      "fill",
+      "stroke",
+      "stroke-width"
+    ],
+    "circle": ["cx", "cy", "r", "fill", "stroke", "stroke-width"],
+    "ellipse": ["cx", "cy", "rx", "ry", "fill", "stroke", "stroke-width"],
+    "text": ["x", "y", "text-anchor", "font-family", "font-size", "fill"],
+    "line": [
+      "data-source",
+      "data-target",
+      "x1",
+      "y1",
+      "x2",
+      "y2",
+      "stroke",
+      "stroke-width",
+      "marker-end"
+    ]
+  },
+  "children": {
+    "svg": ["title", "desc", "defs", "g", "line"],
+    "defs": ["marker"],
+    "marker": ["path"],
+    "g": ["title", "desc", "rect", "circle", "ellipse", "text"]
+  },
+  "required": {
+    "svg": ["viewBox", "data-diagram-version"],
+    "marker": [
+      "id",
+      "viewBox",
+      "refX",
+      "refY",
+      "markerWidth",
+      "markerHeight",
+      "orient"
+    ],
+    "path": ["d"],
+    "g": ["id", "data-node", "transform"],
+    "rect": ["width", "height"],
+    "circle": ["r"],
+    "ellipse": ["rx", "ry"],
+    "line": ["data-source", "data-target", "x1", "y1", "x2", "y2"]
+  }
+}

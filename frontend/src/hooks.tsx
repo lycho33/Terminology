@@ -51,7 +51,8 @@ export const useUpdateTerm = () => {
   return useMutation({
     mutationFn: (term: UpdateTermInput) => updateTerm(term),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terms"] }); // Invalidate cache to refetch
+      queryClient.invalidateQueries({ queryKey: ["terms"] });
+      queryClient.invalidateQueries({ queryKey: ["term"] }); // Refresh saved details after editing.
     },
   });
 };

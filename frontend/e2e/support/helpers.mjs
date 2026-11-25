@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 
@@ -96,3 +97,5 @@ export async function simulate(
     });
   });
 }
+
+export const exampleSvg = readFileSync(new URL("../../../docs/skill-graph/examples/connected-shapes.svg", import.meta.url), "utf8");

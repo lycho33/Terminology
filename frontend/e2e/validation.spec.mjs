@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   API,
+  exampleSvg,
   termUrl,
   newName,
   savedTerm,
@@ -126,7 +127,7 @@ test("real HTTP update: omitted and null values preserve fields; empty text clea
 }) => {
   const term = await savedTerm(request, "patch values", {
     definition: "Keep",
-    diagram: "Keep diagram",
+    diagram: exampleSvg,
   });
   for (const data of [{}, { name: null, definition: null, diagram: null }]) {
     expect((await request.patch(termUrl(term.name), { data })).status()).toBe(
