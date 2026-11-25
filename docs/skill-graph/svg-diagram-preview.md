@@ -3,14 +3,14 @@
 ## State
 
 - Started: 2026-11-23. Last updated: 2026-11-24.
-- Current role: Implementer.
-- Stage: Implementation and automated checks complete; PR handoff in progress.
+- Current role: UI Verifier.
+- Stage: SC-1 evidence ready; waiting for user review.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Finish verification, create the PR and HTML report, then start
-  UI review at SC-1.
-- Implementation: Written. PR and UI review: Pending.
+- Next action: Wait for the user response to SC-1. Do not start SC-2 yet.
+- Implementation: Committed as `b137a1086403a52ff3b79962f7c1e777d09e0491`.
+- PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
 ## Known Knowns
 
@@ -381,7 +381,8 @@ flowchart TD
   copied string and denial fallback, not the operating system clipboard.
 - SC-9 simulates a legacy GET response while using a real isolated database for
   corrected writes. It does not claim to have migrated existing user data.
-- User scenario review: Not started. Automated checks do not count as user review.
+- User scenario review: SC-1 presented with fresh evidence. Awaiting response.
+  Automated checks do not count as user review.
 
 
 ## Acceptance evidence
@@ -443,4 +444,25 @@ add `--project=chromium`. The current review scenario is SC-1.
   The explain-diff-html static validator passed. Quiz/browser runtime checks are
   unverified. No cmux socket was available; the browser tool rejected local file
   navigation. These limits do not affect the app E2E results above.
-- PR: pending publication. Do not merge or deploy as part of this task.
+- PR: https://github.com/lycho33/Terminology/pull/14 (draft), base
+  `feature/skill-graph-orcehstration`. Do not merge or deploy as part of this task.
+
+
+## Current UI review: SC-1
+
+- Implementation commit: `b137a1086403a52ff3b79962f7c1e777d09e0491`.
+- Setup: fresh isolated services; create form named SVG preview example.
+- Actions: paste the example, select Preview, then return to Code.
+- Expected and observed: Client and Server boxes and their arrow appear. Source
+  remains exact after switching. No POST /terms request occurs before submit.
+- Command: `npm run test:e2e --prefix frontend -- --project=chromium --grep 'SC-1 SVG:'`.
+- Result: 1 selected, 1 passed. Real services were available; this scenario makes
+  no save request. No responses were simulated. Cleanup removed the temporary
+  container without failures.
+- Evidence: `frontend/e2e-artifacts/run-6npVXU/results.json` and
+  `frontend/e2e-artifacts/run-6npVXU/test-results/svg-diagram-SC-1-SVG-paste-and-preview-before-saving-chromium/preview-before-save.png`.
+- The system inspected the successful screenshot. It shows both boxes, their
+  labels, the arrow, Code/Preview controls, and the unsaved Create action.
+  No before image is available.
+- User review status: Awaiting response. Feedback and required corrections: None
+  received yet. Next scenario after acceptance: SC-2.
