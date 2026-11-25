@@ -3,14 +3,14 @@
 ## State
 
 - Started: 2026-11-23. Last updated: 2026-11-25.
-- Current role: Implementer (toolbar correction).
-- Stage: Toolbar checks passed; PR/report handoff in progress.
+- Current role: UI Verifier.
+- Stage: Revised SC-1 dark-mode evidence ready; waiting for user review.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Verify the toolbar in light and dark mode, update PR/report, and
-  repeat SC-1. Do not start SC-2 yet.
-- Implementation: Current code committed as `e316ebbefb81ff52e1f2bfbe362204ce89c7b904`.
+- Next action: Wait for the user response to the revised toolbar in SC-1.
+  Do not start SC-2 yet.
+- Implementation: Current code committed as `d63d894fa48fd3ace92e8bc29ad24586dcd65de6`.
 - PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
 ## Known Knowns
@@ -684,3 +684,20 @@ flowchart LR
     header --> css
     viewer --> footnote["Help text below SVG"]
 ```
+
+
+### Current SC-1 review: revised dark-mode toolbar
+
+- Code commit: `d63d894fa48fd3ace92e8bc29ad24586dcd65de6`.
+- PR #14 and `/tmp/2026-11-25-explanation-svg-diagram-preview.html` updated.
+  HTML static validation passed. The earlier browser runtime limitation remains.
+- Command: `npm run test:e2e --prefix frontend -- --project=chromium --grep 'SC-1 SVG: compact toolbar and footnote in dark mode'`.
+- Exactly 1 case selected and passed. The test uses the isolated stack and no
+  simulated responses. This toolbar case makes no save request.
+- Evidence: `frontend/e2e-artifacts/run-HaDT9u/results.json`, `cleanup.json`, and
+  `frontend/e2e-artifacts/run-HaDT9u/test-results/svg-diagram-SC-1-SVG-compa-c662d-r-and-footnote-in-dark-mode-chromium/toolbar-dark.png`.
+- Expected and observed: quiet themed controls in one row; plus/minus/copy icons
+  with accessible names; working keyboard zoom; help below the image. Desktop
+  and 390px layout assertions passed. The system inspected the current screenshot.
+- Temporary database cleanup passed. No user service was restarted.
+- User review: Pending response to this revised appearance. Do not start SC-2.
