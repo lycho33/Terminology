@@ -45,6 +45,7 @@ async def validation_error_handler(
 ) -> JSONResponse:
     """Validates the data, the user submits follows these rules"""
     messages = {
+        "invalid_svg": ("INVALID_SVG", "Use supported SVG elements and attributes. Check the SVG code."),
         "missing": ("FIELD_REQUIRED", "This field is required."),
         "blank_text": ("FIELD_BLANK", "Enter a value that is not blank."),
         "string_type": ("INVALID_TYPE", "Enter text for this field."),

@@ -4,4 +4,5 @@ WORKDIR /api
 COPY ./requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 COPY ./api /api
+COPY ./frontend/src/diagram/format.json /frontend/src/diagram/format.json
 CMD ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]

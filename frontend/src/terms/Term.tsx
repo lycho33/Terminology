@@ -5,6 +5,8 @@ import { VscChromeClose } from "react-icons/vsc";
 import { fieldMessages, formMessages } from "../api-errors";
 import { useTermContext } from "../hooks";
 import type { DeleteModalProps, UpdateFormProps } from "./types";
+import { DiagramField } from "../diagram/DiagramField";
+import { diagramError } from "../diagram/svg-format";
 import { ValidationMessages } from "./ValidationMessages";
 
 export const TermSearchForm = () => {
@@ -95,8 +97,8 @@ export const CreateTermForm = () => {
     create.resetError();
   };
 
-  const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewDiagram(e.target.value);
+  const handleDiagramChange = (value: string) => {
+    setNewDiagram(value);
     create.resetError();
   };
 
@@ -104,7 +106,8 @@ export const CreateTermForm = () => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
     const nextDefinition = newDefinition.trim();
-    const nextDiagram = newDiagram.trim();
+    const nextDiagram = newDiagram;
+    if (diagramError(nextDiagram)) return;
 
     create.setStatus("pending");
     create.createTerm(
@@ -174,31 +177,13 @@ export const CreateTermForm = () => {
             messages={fieldMessages(create.issues, "definition")}
           />
         </div>
-        <div className="term-card__definition-editor">
-          <label className="term-card__definition-label" htmlFor="diagram">
-            Diagram
-          </label>
-          <textarea
-            className="term-card__definition-input"
-            id="diagram"
-            name="diagram"
-            value={newDiagram}
-            onChange={handleDiagramChange}
-            disabled={create.isPending}
-            aria-invalid={fieldMessages(create.issues, "diagram").length > 0}
-            aria-describedby={
-              fieldMessages(create.issues, "diagram").length > 0
-                ? "create-diagram-errors"
-                : undefined
-            }
-            placeholder="No diagram saved yet."
-            rows={3}
-          />
-          <ValidationMessages
-            id="create-diagram-errors"
-            messages={fieldMessages(create.issues, "diagram")}
-          />
-        </div>
+        <DiagramField
+          value={newDiagram}
+          onChange={handleDiagramChange}
+          disabled={create.isPending}
+          errorId="create-diagram-errors"
+          errors={fieldMessages(create.issues, "diagram")}
+        />
       </div>
       <ValidationMessages
         messages={formMessages(create.issues, create.errorMessage)}
@@ -252,8 +237,8 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
     update.resetUpdateSuccess();
   };
 
-  const handleDiagramChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewDiagram(e.target.value);
+  const handleDiagramChange = (value: string) => {
+    setNewDiagram(value);
     update.resetUpdateSuccess();
   };
 
@@ -261,7 +246,8 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
     e.preventDefault();
     const nextTerm = newTerm.trim();
     const nextDefinition = newDefinition?.trim();
-    const nextDiagram = newDiagram?.trim();
+    const nextDiagram = newDiagram ?? "";
+    if (diagramError(nextDiagram)) return;
 
     update.updateTerm(
       {
@@ -357,31 +343,13 @@ const UpdateTermForm = ({ onEditMode }: UpdateFormProps) => {
           messages={fieldMessages(update.issues, "definition")}
         />
       </div>
-      <div className="term-card__definition-editor">
-        <label className="term-card__definition-label" htmlFor="diagram">
-          Diagram
-        </label>
-        <textarea
-          className="term-card__definition-input"
-          id="diagram"
-          name="diagram"
-          value={newDiagram}
-          onChange={handleDiagramChange}
-          disabled={update.isPending}
-          aria-invalid={fieldMessages(update.issues, "diagram").length > 0}
-          aria-describedby={
-            fieldMessages(update.issues, "diagram").length > 0
-              ? "update-diagram-errors"
-              : undefined
-          }
-          placeholder="No diagram saved yet."
-          rows={3}
-        />
-        <ValidationMessages
-          id="update-diagram-errors"
-          messages={fieldMessages(update.issues, "diagram")}
-        />
-      </div>
+      <DiagramField
+        value={newDiagram ?? ""}
+        onChange={handleDiagramChange}
+        disabled={update.isPending}
+        errorId="update-diagram-errors"
+        errors={fieldMessages(update.issues, "diagram")}
+      />
     </form>
   );
 };
@@ -630,8 +598,10 @@ export const TermCard = () => {
             </div>
 
             <div className="term-card__section">
-              <h3>Diagram</h3>
-              <p>{dataTerm?.diagram ?? "No diagram saved yet."}</p>
+              <DiagramField
+                key={dataTerm?.id}
+                value={dataTerm?.diagram ?? ""}
+              />
             </div>
           </>
         )}

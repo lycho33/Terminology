@@ -104,7 +104,8 @@ container name in `last-run.json` to inspect and remove only that test instance.
 
 ## Troubleshooting
 
-- **Occupied ports:** The suite requires ports 3030 and 8000. Stop your own app
+- **Occupied ports:** The suite requires frontend port 3030. The API and database
+  use temporary ports. If port 3030 is occupied, stop your own frontend
   before testing. The runner refuses to reuse or terminate existing services.
 - **Docker unavailable:** Start Docker Desktop and confirm `docker info` works.
 - **Missing Python or browsers:** Run the setup command again. Check the required
@@ -146,3 +147,13 @@ Replace the example path with the extracted `run-*` folder's `report` directory.
 GitHub stores the artifact for 5 days. Download it before it expires if you need
 to keep it longer. If setup fails before Playwright generates a report, the
 upload step warns that no report exists. Check that run's job logs.
+
+
+### API endpoint isolation
+
+The runner chooses an API port on `127.0.0.1` and passes the same address to the
+React build (`VITE_API_URL`) and test helpers (`E2E_API_URL`). The helpers reject
+runs without this explicit address. `endpoints.json` records the run's addresses.
+The regular app defaults to `http://localhost:8000` when `VITE_API_URL` is unset.
+A service on port 8000 does not receive test traffic. Do not replace the test
+address with `localhost`: IPv4 and IPv6 listeners can belong to different apps.

@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 
-export const API = "http://localhost:8000";
+export const API = process.env.E2E_API_URL;
+if (!API || !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(API))
+  throw new Error("Use the isolated runner to supply the test API address.");
 export const termUrl = (name) => `${API}/terms/${encodeURIComponent(name)}`;
 export const newName = (label) => `E2e ${label} ${randomUUID()}`;
-export const normalized = (name) => name.trim().charAt(0).toUpperCase() + name.trim().slice(1).toLowerCase();
+export const normalized = (name) =>
+  name.trim().charAt(0).toUpperCase() + name.trim().slice(1).toLowerCase();
 
 export async function savedTerm(request, label = "term", fields = {}) {
   const name = newName(label);
@@ -96,3 +100,11 @@ export async function simulate(
     });
   });
 }
+
+export const exampleSvg = readFileSync(
+  new URL(
+    "../../../docs/skill-graph/examples/connected-shapes.svg",
+    import.meta.url,
+  ),
+  "utf8",
+);

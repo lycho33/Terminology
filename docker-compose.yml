@@ -37,6 +37,8 @@ services:
       - "8000:8000"
     volumes:
       - ./api:/api # stores the code in the container
+      # Keep validation rules aligned with the live frontend and API code.
+      - ./frontend/src/diagram:/frontend/src/diagram:ro
     restart: "no"
     env_file: ".env"
   web-app:

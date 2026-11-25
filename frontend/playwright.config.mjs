@@ -4,6 +4,7 @@ import path from "node:path";
 // Prevent a direct test command from accidentally targeting a user's running app.
 if (
   !process.env.E2E_RUN_ID ||
+  !process.env.E2E_API_URL ||
   !process.env.E2E_CONTROL_URL ||
   !process.env.E2E_ARTIFACT_DIR
 ) {
