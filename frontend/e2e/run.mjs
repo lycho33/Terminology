@@ -38,7 +38,7 @@ const apiCwd = mkdtempSync(path.join(os.tmpdir(), "terminology-e2e-"));
 let api, web, playwright, controller;
 let createdContainer = false;
 let stopping = false;
-let dbPort;
+let dbPort, apiPort;
 const logs = [];
 const env = { ...process.env };
 // Settings must never inherit the user's database credentials or Python paths.
@@ -103,7 +103,7 @@ async function stop(child) {
     clearTimeout(timer);
   }
 }
-async function allocateDatabasePort() {
+async function allocatePort() {
   const probe = createNetServer();
   await new Promise((resolve, reject) => {
     probe.once("error", reject);
@@ -176,7 +176,7 @@ async function startApi() {
       "--host",
       "127.0.0.1",
       "--port",
-      "8000",
+      String(apiPort),
     ],
     { cwd: apiCwd },
   );
@@ -186,12 +186,12 @@ async function startApi() {
     if (
       !stripVTControlCharacters(
         readFileSync(logPath, "utf8").slice(offset),
-      ).includes("Uvicorn running on http://127.0.0.1:8000")
+      ).includes(`Uvicorn running on ${env.E2E_API_URL}`)
     )
       return false;
     try {
       return (
-        await fetch("http://127.0.0.1:8000/", {
+        await fetch(`${env.E2E_API_URL}/`, {
           signal: AbortSignal.timeout(1500),
         })
       ).ok;
@@ -259,10 +259,21 @@ for (const signal of ["SIGINT", "SIGTERM"])
 let status = 1;
 try {
   if (!existsSync(python)) throw new Error("Run npm run test:e2e:setup first.");
-  for (const port of [3030, 8000]) {
+  for (const port of [3030]) {
     await assertPortFree("127.0.0.1", port);
     await assertPortFree("::1", port);
   }
+  apiPort = await allocatePort();
+  env.E2E_API_URL = `http://127.0.0.1:${apiPort}`;
+  env.VITE_API_URL = env.E2E_API_URL;
+  writeFileSync(
+    path.join(artifacts, "endpoints.json"),
+    JSON.stringify(
+      { api: env.E2E_API_URL, frontend: "http://127.0.0.1:3030" },
+      null,
+      2,
+    ),
+  );
   command("docker", ["info", "--format", "{{.ServerVersion}}"]);
   command(process.execPath, ["node_modules/typescript/bin/tsc", "-b"]);
   command(process.execPath, [
@@ -271,7 +282,7 @@ try {
     "--config",
     "e2e/vite.config.mjs",
   ]);
-  dbPort = await allocateDatabasePort();
+  dbPort = await allocatePort();
   command("docker", [
     "create",
     "--name",

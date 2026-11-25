@@ -6,61 +6,108 @@ export type SvgElement = {
   text: string;
   children: SvgElement[];
 };
-export type Diagram = { viewBox: string; elements: SvgElement[] };
+export type Diagram = {
+  viewBox: string;
+  attrs: Record<string, string>;
+  elements: SvgElement[];
+  interactive: boolean;
+};
 const schema = format as {
   namespace: string;
   version: string;
   maxLength: number;
   maxElements: number;
+  maxDepth: number;
   attributes: Record<string, string[]>;
   required: Record<string, string[]>;
   children: Record<string, string[]>;
 };
-const idPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
-const numberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const idPattern = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/;
+const numericPart =
+  "[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?";
+const numberPattern = new RegExp(`^${numericPart}$`);
 const numeric = new Set(
-  "refX refY markerWidth markerHeight x y width height rx ry cx cy r x1 y1 x2 y2 stroke-width font-size".split(
+  "refX refY markerWidth markerHeight x y dx dy width height rx ry cx cy r x1 y1 x2 y2 stroke-width font-size opacity fill-opacity stroke-opacity".split(
     " ",
   ),
 );
-const positive = new Set([
-  "markerWidth",
-  "markerHeight",
-  "width",
-  "height",
-  "r",
-  "font-size",
-]);
+const nonnegative = new Set(
+  "markerWidth markerHeight width height rx ry r stroke-width font-size".split(
+    " ",
+  ),
+);
+const markerAttributes = ["marker-start", "marker-mid", "marker-end"];
 const fail = (message: string): never => {
   throw new Error(message);
 };
-const number = (s: string) => {
+const number = (value: string) => {
   if (
-    !numberPattern.test(s) ||
-    !Number.isFinite(Number(s)) ||
-    Math.abs(Number(s)) > 1e6
+    !numberPattern.test(value) ||
+    !Number.isFinite(Number(value)) ||
+    Math.abs(Number(value)) > 1e6
   )
     fail("Use finite SVG coordinates between -1000000 and 1000000.");
-  return Number(s);
+  return Number(value);
 };
+const numbers = (value: string) =>
+  value
+    .trim()
+    .split(/[\s,]+/)
+    .map(number);
 export function translation(value: string): [number, number] {
-  const numericPart = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
   const match = new RegExp(
     `^translate\\(\\s*(${numericPart})(?:\\s*,\\s*|\\s+)(${numericPart})\\s*\\)$`,
   ).exec(value);
-  const parts = match?.slice(1);
-  if (!parts || parts.length !== 2)
-    return fail("Use translate(x y) for each shape group.");
-  return [number(parts[0]), number(parts[1])];
+  if (!match) return fail("Use translate(x y) for each movable shape group.");
+  return [number(match[1]), number(match[2])];
 }
+function validateTransform(value: string) {
+  const parts = Array.from(
+    value.matchAll(/(matrix|translate|scale|rotate|skewX|skewY)\(([^()]*)\)/g),
+  );
+  if (
+    !parts.length ||
+    value
+      .replace(/(matrix|translate|scale|rotate|skewX|skewY)\([^()]*\)/g, "")
+      .replace(/[\s,]/g, "")
+  )
+    fail("Use SVG transform functions with numeric values.");
+  const counts: Record<string, number[]> = {
+    matrix: [6],
+    translate: [1, 2],
+    scale: [1, 2],
+    rotate: [1, 3],
+    skewX: [1],
+    skewY: [1],
+  };
+  for (const part of parts)
+    if (!counts[part[1]].includes(numbers(part[2]).length))
+      fail("Check the number of SVG transform values.");
+}
+const enums: Record<string, string[]> = {
+  "text-anchor": ["start", "middle", "end"],
+  "font-style": ["normal", "italic", "oblique"],
+  "stroke-linecap": ["butt", "round", "square"],
+  "stroke-linejoin": ["miter", "round", "bevel"],
+  "fill-rule": ["nonzero", "evenodd"],
+  markerUnits: ["strokeWidth", "userSpaceOnUse"],
+  role: ["img", "presentation", "none", "group"],
+  "dominant-baseline": [
+    "auto",
+    "middle",
+    "central",
+    "hanging",
+    "text-before-edge",
+    "text-after-edge",
+    "alphabetic",
+  ],
+};
 export function parseDiagram(source: string): Diagram | null {
   if (source === "") return null;
   if (source.length > schema.maxLength)
-    fail("Keep SVG source under 100000 characters.");
-  if (/<!|<\?/.test(source))
-    fail(
-      "Paste SVG without declarations, comments, or processing instructions.",
-    );
+    fail("Use at most 100000 SVG source characters.");
+  if (/<!|<\?/.test(source.replace(/<!--[\s\S]*?-->/g, "")))
+    fail("Paste SVG without declarations or processing instructions.");
   const document = new DOMParser().parseFromString(source, "image/svg+xml");
   if (document.querySelector("parsererror"))
     fail("Enter complete, well-formed SVG code.");
@@ -70,22 +117,22 @@ export function parseDiagram(source: string): Diagram | null {
   if (root.querySelectorAll("*").length + 1 > schema.maxElements)
     fail("Use at most 500 SVG elements.");
   const ids = new Set<string>(),
-    nodes = new Set<string>(),
     markers = new Set<string>();
-  const lines: SvgElement[] = [];
-  const visit = (el: Element, parent?: string): SvgElement => {
+  const references: string[] = [];
+  const visit = (el: Element, parent?: string, depth = 0): SvgElement => {
     const tag = el.localName;
+    if (depth > schema.maxDepth) fail("Use at most 20 nested SVG levels.");
     if (
       el.namespaceURI !== schema.namespace ||
       !Object.hasOwn(schema.attributes, tag) ||
       (parent && !schema.children[parent]?.includes(tag))
     )
-      fail(`Unsupported SVG element: ${tag}. Use the example format.`);
+      fail(`Unsupported SVG element: ${tag}.`);
     const attrs: Record<string, string> = {};
     for (const attr of Array.from(el.attributes)) {
       if (attr.name === "xmlns" && attr.value === schema.namespace) continue;
       if (attr.namespaceURI || !schema.attributes[tag].includes(attr.name))
-        fail(`Unsupported attribute: ${attr.name}. Use the example format.`);
+        fail(`Unsupported SVG attribute: ${attr.name}.`);
       attrs[attr.name] = attr.value;
     }
     for (const key of schema.required[tag] ?? [])
@@ -93,63 +140,67 @@ export function parseDiagram(source: string): Diagram | null {
     for (const [key, value] of Object.entries(attrs)) {
       if (numeric.has(key)) {
         const n = number(value);
-        if (
-          (positive.has(key) && n <= 0) ||
-          (["rx", "ry", "stroke-width"].includes(key) && n < 0)
-        )
-          fail(`Use a valid positive size for ${key}.`);
+        if (nonnegative.has(key) && n < 0)
+          fail(`Use a nonnegative value for ${key}.`);
+        if (key.endsWith("opacity") && (n < 0 || n > 1))
+          fail("Use opacity from 0 to 1.");
       } else if (key === "viewBox") {
-        const parts = value
-          .trim()
-          .split(/[\s,]+/)
-          .map(number);
+        const parts = numbers(value);
         if (parts.length !== 4 || parts[2] <= 0 || parts[3] <= 0)
           fail('Use viewBox="x y width height" with positive dimensions.');
       } else if (["id", "data-source", "data-target"].includes(key)) {
-        if (!idPattern.test(value))
-          fail(
-            "Use unique IDs beginning with a letter, followed by letters, digits, underscores, or hyphens.",
-          );
-      } else if (key === "transform") translation(value);
+        if (!idPattern.test(value)) fail("Use a valid SVG identifier.");
+      } else if (key === "transform") validateTransform(value);
       else if (
         ["fill", "stroke"].includes(key) &&
-        !/^(?:#[0-9a-fA-F]{3,8}|[A-Za-z]+)$/.test(value)
+        !/^(?:#[0-9a-fA-F]{3,8}|[A-Za-z]+|(?:rgb|hsl)a?\([0-9.,%+\s-]+\))$/.test(
+          value,
+        )
       )
-        fail("Use a named or hexadecimal color.");
-      else if (
-        key === "marker-end" &&
-        !/^url\(#[A-Za-z][A-Za-z0-9_-]{0,63}\)$/.test(value)
-      )
-        fail("Use a local arrow marker reference.");
-      else if (
+        fail("Use a named, hexadecimal, RGB, or HSL color.");
+      else if (markerAttributes.includes(key)) {
+        if (value === "none") continue;
+        const id = /^url\(#([^()\s]+)\)$/.exec(value)?.[1];
+        if (!id || !idPattern.test(id))
+          fail("Use a local arrow marker reference.");
+        references.push(id!);
+      } else if (
         key === "d" &&
-        (!value.trim() || !/^[MmLlHhVvZz0-9eE+.,\s-]+$/.test(value))
+        (!value.trim() || !/^[MmLlHhVvZzCcSsQqTtAa0-9eE+.,\s-]+$/.test(value))
       )
-        fail("Use straight segments for arrow marker paths.");
+        fail("Use SVG path commands and numeric coordinates.");
+      else if (key === "points" && numbers(value).length % 2 !== 0)
+        fail("Use x,y coordinate pairs for points.");
+      else if (key === "stroke-dasharray" && value !== "none") {
+        if (numbers(value).some((n) => n < 0))
+          fail("Use nonnegative dash lengths.");
+      } else if (key === "font-family" && !/^[A-Za-z0-9 ,_'"-]+$/.test(value))
+        fail("Use font names separated by commas.");
       else if (
-        key === "font-family" &&
-        !["sans-serif", "serif", "monospace"].includes(value)
+        key === "font-weight" &&
+        !/^(?:normal|bold|bolder|lighter|[1-9]00)$/.test(value)
       )
-        fail("Use sans-serif, serif, or monospace text.");
+        fail("Use a supported font weight.");
       else if (
-        key === "text-anchor" &&
-        !["start", "middle", "end"].includes(value)
+        key === "orient" &&
+        !["auto", "auto-start-reverse"].includes(value)
       )
-        fail("Use start, middle, or end for text-anchor.");
-      else if (key === "orient" && value !== "auto")
-        fail('Use orient="auto" on arrow markers.');
-      else if (key === "data-node" && value !== "true")
-        fail('Use data-node="true" on movable groups.');
-      else if (key === "data-diagram-version" && value !== schema.version)
-        fail('Use data-diagram-version="1".');
+        number(value);
+      else if (
+        key === "preserveAspectRatio" &&
+        !/^(?:none|x(?:Min|Mid|Max)Y(?:Min|Mid|Max)(?: (?:meet|slice))?)$/.test(
+          value,
+        )
+      )
+        fail("Use a supported SVG aspect ratio.");
+      else if (Object.hasOwn(enums, key) && !enums[key].includes(value))
+        fail(`Unsupported SVG ${key} value.`);
     }
     if (attrs.id) {
       if (ids.has(attrs.id))
-        fail(
-          `Duplicate ID: ${attrs.id}. Give every shape and marker a unique ID.`,
-        );
+        fail(`Duplicate ID: ${attrs.id}. Use unique SVG IDs.`);
       ids.add(attrs.id);
-      (tag === "g" ? nodes : markers).add(attrs.id);
+      if (tag === "marker") markers.add(attrs.id);
     }
     const text = Array.from(el.childNodes)
       .filter((n) => n.nodeType === Node.TEXT_NODE)
@@ -157,33 +208,72 @@ export function parseDiagram(source: string): Diagram | null {
       .join("");
     if (!["title", "desc", "text"].includes(tag) && text.trim())
       fail("Put visible text in a text element.");
-    const children = Array.from(el.children).map((c) => visit(c, tag));
-    if (tag === "g") {
-      for (const label of ["title", "desc"]) {
-        const found = children.filter((c) => c.tag === label);
-        if (found.length !== 1 || !found[0].text.trim())
-          fail("Each shape group needs one title and one description.");
-      }
-      if (!children.some((c) => ["rect", "circle", "ellipse"].includes(c.tag)))
-        fail("Each group needs a rectangle, circle, or ellipse.");
-    }
-    const result = { tag, attrs, text, children };
-    if (tag === "line") lines.push(result);
-    return result;
+    return {
+      tag,
+      attrs,
+      text,
+      children: Array.from(el.children).map((c) => visit(c, tag, depth + 1)),
+    };
   };
   const parsed = visit(root);
-  if (!nodes.size) fail("Add at least one shape group from the example.");
-  for (const line of lines) {
-    if (
-      !nodes.has(line.attrs["data-source"]) ||
-      !nodes.has(line.attrs["data-target"])
+  if (references.some((id) => !markers.has(id)))
+    fail("The SVG references a missing arrow marker.");
+  return {
+    viewBox: parsed.attrs.viewBox,
+    attrs: parsed.attrs,
+    elements: parsed.children,
+    interactive: canMoveShapes(parsed),
+  };
+}
+
+// Interaction is optional. Never infer a shape or connection from visual proximity.
+function canMoveShapes(root: SvgElement): boolean {
+  if (root.attrs["data-diagram-version"] !== schema.version) return false;
+  const groups = root.children.filter((el) => el.tag === "g");
+  if (
+    !groups.length ||
+    root.children.some(
+      (el) => !["g", "line", "defs", "title", "desc"].includes(el.tag),
     )
-      fail("Each connection must name an existing source and target shape.");
-    const marker = line.attrs["marker-end"];
-    if (marker && !markers.has(marker.slice(5, -1)))
-      fail("The connection references a missing arrow marker.");
+  )
+    return false;
+  for (const group of groups) {
+    if (!group.attrs.id || group.attrs["data-node"] !== "true") return false;
+    try {
+      translation(group.attrs.transform ?? "");
+    } catch {
+      return false;
+    }
+    if (
+      group.children.some(
+        (el) =>
+          !["rect", "circle", "ellipse", "text", "title", "desc"].includes(
+            el.tag,
+          ),
+      )
+    )
+      return false;
+    if (
+      !group.children.some((el) =>
+        ["rect", "circle", "ellipse"].includes(el.tag),
+      )
+    )
+      return false;
+    for (const label of ["title", "desc"]) {
+      const found = group.children.filter((el) => el.tag === label);
+      if (found.length !== 1 || !found[0].text.trim()) return false;
+    }
   }
-  return { viewBox: parsed.attrs.viewBox, elements: parsed.children };
+  const ids = new Set(groups.map((el) => el.attrs.id));
+  return root.children
+    .filter((el) => el.tag === "line")
+    .every(
+      (line) =>
+        !line.attrs.transform &&
+        ids.has(line.attrs["data-source"]) &&
+        ids.has(line.attrs["data-target"]) &&
+        ["x1", "y1", "x2", "y2"].every((key) => key in line.attrs),
+    );
 }
 export function diagramError(source: string): string | null {
   try {

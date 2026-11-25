@@ -254,8 +254,18 @@ test("SC-7 SVG: invalid input is retained and can be corrected", async ({
   await openCreate(page, name);
   for (const item of cases) {
     await sourceInput(page).fill(item.source);
-    if (item.valid) await expect(page.getByRole("alert")).toHaveCount(0);
-    else {
+    if (item.valid) {
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      if (typeof item.interactive === "boolean") {
+        await page
+          .getByRole("button", { name: "Preview", exact: true })
+          .click();
+        await expect(page.locator("[data-shape-id]")).toHaveCount(
+          item.interactive ? 2 : 0,
+        );
+        await page.getByRole("button", { name: "Code", exact: true }).click();
+      }
+    } else {
       await expect(page.getByRole("alert")).toBeVisible();
       await page.getByRole("button", { name: "Create", exact: true }).click();
       await expect(sourceInput(page)).toHaveValue(item.source);
@@ -266,9 +276,9 @@ test("SC-7 SVG: invalid input is retained and can be corrected", async ({
     }
   }
   await sourceInput(page).fill(
-    exampleSvg.replace('data-target="server"', 'data-target="missing"'),
+    exampleSvg.replace("url(#arrow)", "url(#missing)"),
   );
-  await evidence(page, info, "broken-connection-error");
+  await evidence(page, info, "missing-marker-error");
   await sourceInput(page).fill(exampleSvg);
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(shape(page, "client")).toBeVisible();
@@ -314,4 +324,101 @@ test("SC-9 SVG: simulated legacy read preserves old text for correction", async 
   await page.getByRole("button", { name: "Update", exact: true }).click();
   await expect(shape(page, "client")).toBeVisible();
   expect((await readTerm(request, term.name)).diagram).toBe(exampleSvg);
+});
+
+const dockerSvg = readFileSync(
+  new URL("../../docs/skill-graph/examples/docker-image.svg", import.meta.url),
+  "utf8",
+);
+test("SC-1 SVG: ordinary Docker source saves unchanged and supports view controls", async ({
+  page,
+  request,
+}, info) => {
+  const name = newName("Docker").slice(0, 25);
+  let writes = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && r.url().startsWith(`${API}/terms/`)) writes++;
+  });
+  await openCreate(page, name);
+  await sourceInput(page).fill(dockerSvg);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  const canvas = page.locator(".diagram__canvas");
+  await expect(
+    canvas.locator("text").filter({ hasText: "CONTAINER A" }),
+  ).toBeVisible();
+  await expect(canvas.locator("[data-shape-id]")).toHaveCount(0);
+  await expect(canvas.locator("[role=button]")).toHaveCount(0);
+  await expect(
+    page.getByText("Drag anywhere to move the view.", { exact: false }),
+  ).toBeVisible();
+  const heading = canvas.locator("text").first();
+  await expect(heading).toHaveCSS("font-weight", "700");
+  await expect(heading).toHaveCSS("fill", "rgb(15, 23, 42)");
+  const markerId = await canvas.locator("marker").getAttribute("id");
+  await expect(canvas.locator("g[marker-end]")).toHaveAttribute(
+    "marker-end",
+    `url(#${markerId})`,
+  );
+  const labelIds = (await canvas.getAttribute("aria-labelledby")).split(" ");
+  expect(labelIds).toEqual([
+    await canvas.locator("title").getAttribute("id"),
+    await canvas.locator("desc").getAttribute("id"),
+  ]);
+  expect(writes).toBe(0);
+  await evidence(page, info, "docker-preview-before-save");
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(page.locator("[data-viewport]")).toHaveAttribute(
+    "transform",
+    "translate(0 0) scale(1.25)",
+  );
+  const originalPaths = await canvas
+    .locator("path")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("d")));
+  await drag(page, heading, 30, 15);
+  await expect(page.locator("[data-viewport]")).not.toHaveAttribute(
+    "transform",
+    "translate(0 0) scale(1.25)",
+  );
+  expect(
+    await canvas
+      .locator("path")
+      .evaluateAll((els) => els.map((el) => el.getAttribute("d"))),
+  ).toEqual(originalPaths);
+  await expect(page.getByRole("region", { name: "Shape details" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await expect(page.locator("[data-viewport]")).toHaveAttribute(
+    "transform",
+    "translate(0 0) scale(1)",
+  );
+  await page.getByRole("button", { name: "Code", exact: true }).click();
+  await expect(sourceInput(page)).toHaveValue(dockerSvg);
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(canvas).toBeVisible();
+  const saved = await readTerm(request, name);
+  expect(saved.diagram).toBe(dockerSvg);
+  await page.reload();
+  await showTerm(page, saved);
+  await expect(
+    canvas.locator("text").filter({ hasText: "CONTAINER B" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Code", exact: true }).click();
+  await expect(sourceInput(page)).toHaveValue(dockerSvg);
+  const term = await readTerm(request, name);
+  await openEdit(page, term);
+  await expect(sourceInput(page)).toHaveValue(dockerSvg);
+  await page.getByRole("button", { name: "Update", exact: true }).click();
+  await expect(canvas).toBeVisible();
+  expect((await readTerm(request, name)).diagram).toBe(dockerSvg);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth <=
+        globalThis.innerWidth,
+    ),
+  ).toBe(true);
+  await evidence(page, info, "docker-narrow-preview");
 });

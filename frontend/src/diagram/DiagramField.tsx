@@ -21,6 +21,17 @@ const zero = { x: 0, y: 0 };
 const reactAttributes: Record<string, string> = {
   "stroke-width": "strokeWidth",
   "marker-end": "markerEnd",
+  "marker-start": "markerStart",
+  "marker-mid": "markerMid",
+  "stroke-linecap": "strokeLinecap",
+  "stroke-linejoin": "strokeLinejoin",
+  "stroke-dasharray": "strokeDasharray",
+  "stroke-opacity": "strokeOpacity",
+  "fill-opacity": "fillOpacity",
+  "fill-rule": "fillRule",
+  "font-weight": "fontWeight",
+  "font-style": "fontStyle",
+  "dominant-baseline": "dominantBaseline",
   "font-family": "fontFamily",
   "font-size": "fontSize",
   "text-anchor": "textAnchor",
@@ -44,7 +55,9 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
   } | null>(null);
   const offsetFor = (id: string): Point =>
     Object.hasOwn(offsets, id) ? offsets[id] : zero;
-  const nodes = diagram.elements.filter((el) => el.tag === "g");
+  const nodes = diagram.interactive
+    ? diagram.elements.filter((el) => el.tag === "g")
+    : [];
   const chosen = nodes.find((node) => node.attrs.id === selected);
   const point = (
     event: PointerEvent<SVGSVGElement>,
@@ -62,7 +75,9 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
   const onDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
-    const target = (event.target as Element).closest('[data-node="true"]');
+    const target = diagram.interactive
+      ? (event.target as Element).closest("[data-shape-id]")
+      : null;
     const id = target?.getAttribute("data-shape-id") ?? undefined;
     const start = point(event, id ? content.current : svg.current);
     gesture.current = {
@@ -110,14 +125,29 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
     setSelected(null);
     gesture.current = null;
   };
+  const attributes = (attrs: Record<string, string>) => {
+    const props: Record<string, string> = {};
+    for (const [name, value] of Object.entries(attrs)) {
+      let scoped = value;
+      if (name === "id") scoped = `${prefix}-${value}`;
+      if (
+        ["marker-start", "marker-mid", "marker-end"].includes(name) &&
+        value !== "none"
+      )
+        scoped = `url(#${prefix}-${value.slice(5, -1)})`;
+      if (["aria-labelledby", "aria-describedby"].includes(name))
+        scoped = value
+          .trim()
+          .split(/\s+/)
+          .map((id) => `${prefix}-${id}`)
+          .join(" ");
+      props[reactAttributes[name] ?? name] = scoped;
+    }
+    return props;
+  };
   const render = (el: SvgElement, key: number): ReactNode => {
-    const props: Record<string, unknown> = { key };
-    for (const [name, value] of Object.entries(el.attrs))
-      props[reactAttributes[name] ?? name] = value;
-    if (el.attrs.id) props.id = `${prefix}-${el.attrs.id}`;
-    if (el.attrs["marker-end"])
-      props.markerEnd = `url(#${prefix}-${el.attrs["marker-end"].slice(5, -1)})`;
-    if (el.tag === "g") {
+    const props: Record<string, unknown> = { ...attributes(el.attrs), key };
+    if (diagram.interactive && nodes.includes(el)) {
       const id = el.attrs.id;
       const [x, y] = translation(el.attrs.transform);
       const offset = offsetFor(id);
@@ -145,7 +175,11 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
         }
       };
     }
-    if (el.tag === "line") {
+    if (
+      diagram.interactive &&
+      el.tag === "line" &&
+      diagram.elements.includes(el)
+    ) {
       const from = offsetFor(el.attrs["data-source"]);
       const to = offsetFor(el.attrs["data-target"]);
       props.x1 = Number(el.attrs.x1) + from.x;
@@ -187,15 +221,18 @@ function DiagramViewer({ diagram }: { diagram: Diagram }) {
         </button>
       </div>
       <p className="diagram__hint">
-        Drag the background to move the view. Drag a shape to move it
-        temporarily. Select a shape for details; use arrow keys to move a
-        focused shape.
+        {diagram.interactive
+          ? "Drag the background to move the view. Drag a shape to move it temporarily. Select a shape for details; use arrow keys to move a focused shape."
+          : "Drag anywhere to move the view. Individual shape movement is not available for this SVG."}
       </p>
       <svg
+        {...attributes(diagram.attrs)}
+        width="100%"
+        height={undefined}
         ref={svg}
         className="diagram__canvas"
         viewBox={diagram.viewBox}
-        aria-label="Interactive diagram"
+        aria-label={diagram.attrs["aria-label"] ?? "Diagram preview"}
         role="group"
         onPointerDown={onDown}
         onPointerMove={onMove}

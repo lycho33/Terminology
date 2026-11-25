@@ -2,13 +2,14 @@
 
 ## State
 
-- Started: 2026-11-23. Last updated: 2026-11-24.
-- Current role: UI Verifier.
-- Stage: SC-1 evidence ready; waiting for user review.
+- Started: 2026-11-23. Last updated: 2026-11-25.
+- Current role: Implementer (ordinary SVG correction).
+- Stage: Revised automated checks passed; PR and report update in progress.
 - Starting branch: `feature/skill-graph-orcehstration`.
 - Starting commit and comparison base: `849986f9331766618ed9f9fe738ab692217a2cf2`.
 - Implementation branch: `feature/svg-diagram-preview`.
-- Next action: Wait for the user response to SC-1. Do not start SC-2 yet.
+- Next action: Verify the correction, update PR and HTML, then repeat SC-1 with
+  the supplied Docker SVG. Do not start SC-2 yet.
 - Implementation: Committed as `b137a1086403a52ff3b79962f7c1e777d09e0491`.
 - PR: https://github.com/lycho33/Terminology/pull/14 (draft). UI review: Pending.
 
@@ -362,7 +363,7 @@ flowchart TD
     hooks["Update hook"] -->|"Refresh details after save"| term
 ```
 
-## Verification log
+## Initial implementation verification log (superseded by correction below)
 
 - API suite: 18 passed, 1 opt-in integration test skipped. The new API test checks
   all shared valid/invalid fixtures for POST and PATCH before DB access.
@@ -385,7 +386,7 @@ flowchart TD
   Automated checks do not count as user review.
 
 
-## Acceptance evidence
+## Initial acceptance evidence (superseded by correction below)
 
 These results apply to the implementation in this branch. Browser assertions
 use the real isolated API and Neo4j stack except for the labeled clipboard and
@@ -404,7 +405,7 @@ legacy-read boundaries. The focused Python API contracts mock database access.
 | AC-9 | SC-9: simulated old GET value remains readable; replacement persists to real isolated database. | Pass with simulated legacy read. |
 | AC-10 | SC-3 and SC-4: reset, reload, no unintended writes; save after preview movement retains source. | Pass in both engines. |
 
-## Scenario execution and user review
+## Initial scenario execution and user review (superseded by correction below)
 
 All selectors below run through `npm run test:e2e --prefix frontend -- --grep
 '<selector>'`. Each selects one scenario in both engines. For one-engine review,
@@ -448,7 +449,7 @@ add `--project=chromium`. The current review scenario is SC-1.
   `feature/skill-graph-orcehstration`. Do not merge or deploy as part of this task.
 
 
-## Current UI review: SC-1
+## Initial UI review: SC-1 (correction requested)
 
 - Implementation commit: `b137a1086403a52ff3b79962f7c1e777d09e0491`.
 - Setup: fresh isolated services; create form named SVG preview example.
@@ -466,3 +467,136 @@ add `--project=chromium`. The current review scenario is SC-1.
   No before image is available.
 - User review status: Awaiting response. Feedback and required corrections: None
   received yet. Next scenario after acceptance: SC-2.
+
+## User feedback: ordinary SVG rejected
+
+The user pasted a Docker-image explanation SVG and reported a validation error.
+It has a 900 by 480 viewBox, comments, root dimensions and accessibility
+attributes, inherited group styling, nested groups, and path connectors. It has
+no data-diagram-version, marked movable nodes, or source/target connector IDs.
+
+Source inspection: `frontend/src/diagram/svg-format.ts:60` rejects comments
+before XML parsing. `frontend/src/diagram/format.json:7` restricts root
+attributes; its children and required sections also reject this structure.
+Removing comments alone does not make the supplied SVG compatible.
+This diagnosis is from source inspection, not a new browser reproduction.
+
+The earlier automated evidence still applies to the documented version 1 format.
+It does not establish support for this supplied SVG. SC-1 is not accepted by the
+user. No application code changed in this feedback turn.
+
+Open behavior decision: Should SVG without interaction metadata support source
+storage, image preview, zoom, and pan, while shape movement and linked connector
+updates remain available only when the document provides that metadata?
+The system recommends this separation. It must preserve source and must not
+guess shape groupings or connector relationships.
+
+
+## Approved correction: ordinary SVG support
+
+User decision: "Yes, I want to paste SVGs like this without changing them and be
+able to save, preview, zoom, and pan. Only enable shape dragging when the required
+metadata is present."
+
+This decision replaces the original restriction that all saved SVG must use the
+interaction format. The existing system-change prediction remains applicable:
+React display/parser and API request validation change; storage and queries stay
+as strings. This is a correction of the current feature, not a new interview.
+
+- AC-8 revised: malformed or unsupported active/external SVG content cannot be
+  saved or rendered. Missing interaction metadata is not an SVG validation error.
+- AC-11 added: the user's Docker SVG can be pasted, previewed, created, retrieved,
+  edited, and saved without source rewriting. It supports zoom, pan, and reset.
+- AC-12 added: complete metadata enables group movement with connected endpoints.
+  Missing, incomplete, or incompatible metadata disables group movement for the
+  whole diagram; ordinary view controls remain available.
+- SC-1 expanded: review the supplied Docker SVG before saving. Automated coverage
+  also verifies its create/update round trip and controls. Review only this
+  current scenario, then wait for the user response.
+- Existing tests for rejected missing-target/version/description metadata now
+  expect passive display. A rotated group is also valid for passive display.
+  Added malformed-transform and inherited external-marker rejection cases.
+
+Expected and actual correction map:
+
+```mermaid
+flowchart TD
+    source["Original source"] --> parser["Changed: passive SVG validation"]
+    parser --> display["Changed: nested SVG + inherited presentation"]
+    parser --> eligibility["New: complete interaction metadata check"]
+    eligibility -->|"Complete"| drag["Existing: shape offsets and attached lines"]
+    eligibility -->|"Missing or incomplete"| view["Zoom, pan, reset only"]
+    source --> model["Changed: API accepts supported ordinary SVG"]
+    model --> store["Existing: string property and persistence queries"]
+```
+
+Implementation changes: shared format, both validators, SVG attribute rendering,
+optional interaction behavior, source example, shared fixtures, and browser
+regressions. Root accessibility IDs and inherited marker references are scoped
+together. Source code and comments are preserved in storage, not regenerated
+from the parsed preview. `docs/svg-diagrams.md` defines remaining SVG limits.
+
+Evidence invalidation: earlier browser screenshots and acceptance results do
+not verify this new parser or renderer. Fresh automated results and SC-1 review
+are required. No scenario has been accepted by the user yet.
+
+
+### Isolation defect found during correction
+
+The first correction run (`run-ZKx1xE`) was interrupted and is not valid evidence.
+The runner API listened on 127.0.0.1:8000 while Docker also listened on port 8000
+via IPv6. Test requests to localhost reached ::1. The trace records identify
+those requests; the runner API log contained only its health check.
+
+A read-only audit of the ten exact generated test names found one empty test
+term. It was removed using the exact ID returned by its successful test POST,
+then its absence was confirmed by GET 404. The remaining nine names returned
+404. No broad database cleanup or user-service restart was performed.
+The temporary runner stack was stopped through its cleanup handler.
+
+Correction: choose a temporary API port, bind it to 127.0.0.1, and pass that exact
+URL to both the React build and Playwright helpers. Helpers require the runner
+address. The regular app retains its default URL. This adds a necessary change
+to `actions.tsx` and the E2E runner beyond the original change map. The full
+browser suite must verify the new endpoint routing and outage recovery.
+
+
+## Current correction evidence
+
+All checks below apply to the corrected source, including the separate test API
+address. These results replace the earlier evidence for the changed behavior.
+
+- `frontend/.e2e/venv/bin/python -m unittest discover -s tests -v`: 18 passed,
+  1 optional direct database test skipped. Shared fixtures include the user's
+  SVG, incomplete metadata, inherited marker references, and malformed input.
+- `npm test --prefix frontend`: 5 passed.
+- `npm run build --prefix frontend`: passed.
+- `npm run lint --prefix frontend`: passed.
+- `npm run test:e2e --prefix frontend`: 114 passed, 0 failed, 0 flaky.
+  This includes 20 SVG checks in Chromium and WebKit. The runner's API was on a
+  separate temporary 127.0.0.1 port. The existing service on port 8000 remained
+  running. `endpoints.json` records the test address.
+- Evidence: `frontend/e2e-artifacts/run-uuOtfk/results.json` and `cleanup.json`.
+  Cleanup removed the disposable database without failures.
+- The previous isolated focused run (`run-smtXme`) passed 18 of 20 checks.
+  The new Docker test failed on a case-sensitive term-name locator after the
+  save passed. It now uses the normalized name returned by the API; the full
+  suite above verifies the corrected test in both engines.
+- `git diff --check`: passed.
+
+| Criteria | Fresh observable check | Result |
+| --- | --- | --- |
+| AC-1 | Both SC-1 cases: visible preview, no early POST, source retained. | Pass in both engines. |
+| AC-2, AC-3 | SC-2/SC-6 and Docker SC-1: save/retrieve/edit source; clipboard boundary and fallback. | Pass; OS clipboard remains unverified. |
+| AC-4, AC-10 | SC-3/SC-4 and Docker SC-1: zoom, pan, reset, reload, narrow layout, unchanged source. | Pass in both engines. |
+| AC-5, AC-6 | SC-4/SC-5: attached endpoints, temporary group movement, pointer/keyboard details. | Pass in both engines. |
+| AC-7 | SC-6/SC-8: edit, cancel, save, clear. | Pass in both engines. |
+| AC-8 | SC-7 and shared API cases: malformed/unsupported content rejected with source retained. | Pass. |
+| AC-9 | SC-9: simulated legacy read, real corrected write. | Pass with the stated simulation. |
+| AC-11 | Docker SC-1: source unchanged through POST, GET, PATCH, and reload; source preserved; inherited presentation and labels displayed. | Pass in both engines. |
+| AC-12 | SC-7 fixtures and SC-4: missing/partial metadata gives no movable groups; complete metadata retains attached movement. | Pass in both engines. |
+
+The API Docker image and HTML quiz runtime remain unverified. The local browser
+tool again rejected file navigation to the HTML report. Current HTML: `/tmp/2026-11-25-explanation-svg-diagram-preview.html`.
+Static HTML validation passed. The user's running API container needs a rebuild to include the changed
+shared format file; no user service was restarted by this task.

@@ -70,10 +70,10 @@
   cursor: grab;
   overflow: hidden;
 }
-.diagram__canvas [data-node] {
+.diagram__canvas [data-shape-id] {
   cursor: move;
 }
-.diagram__canvas [data-node]:focus-visible {
+.diagram__canvas [data-shape-id]:focus-visible {
   outline: 3px solid #be7100;
   outline-offset: 4px;
 }
