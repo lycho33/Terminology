@@ -10,53 +10,148 @@ const api = "api/main.py";
 const validator = "api/svg_diagram.py";
 const runner = "frontend/e2e/run.mjs";
 const source = (path, line) => ({ path, line });
-const step = (title, value, detail, basis, path, line, attachment = null) =>
-  ({ title, value, detail, basis, source: source(path, line), attachment });
+const excerpt = (path, line, end, label) => ({ path, line, end, label });
+const trace = (before, after, ...code) => ({ before, after, code });
+const step = (title, value, detail, basis, path, line, attachment, implementation) =>
+  ({ title, value, detail, basis, source: source(path, line), attachment, ...implementation });
 
 const preview = "Checked by test";
 const input = "Test input";
 const inferred = "From source";
 const editPath = ["test", "editor", "data", "api", "database"];
+const client = "<title>Client</title>";
+const browserTitle = "<title>Browser</title>";
+const actions = "frontend/src/actions.tsx";
+const models = "api/models.py";
+const apiSpec = "tests/test_svg_diagram.py";
 const edit = {
   title: "SC-6 SVG: edit, cancel, and save new source",
   source: source(spec, 214),
   path: editPath,
   steps: [
-    step("Load the saved SVG", "Client", "Seed term.diagram with the connected shapes fixture.", input, fixture, 15),
-    step("Preview the draft", "Browser", "The edited source replaces Client with Browser. The browser test checks that the preview shows Browser.", preview, spec, 219, "review-preview"),
-    step("Cancel", "Client", "The browser shows Client again. A GET returns the original SVG source.", preview, spec, 226, "review-cancel"),
-    step("Send an update", "diagram: SVG with Browser", "The update request sends the edited source in the diagram field of the JSON body.", inferred, "frontend/src/actions.tsx", 92),
-    step("Store the updated SVG", "t.diagram = edited SVG", "The API sends the submitted value to the database query.", inferred, api, 122),
-    step("Refresh the saved view", "Browser", "The saved view shows Browser. A GET returns the edited SVG source.", preview, spec, 235, "edited-diagram"),
+    step("Load the saved SVG", "Client", "The test seeds a term with the connected shapes SVG. The edit form reads the saved source into its draft state.", input, spec, 218, null,
+      trace("exampleSvg contains " + client, "get.term.diagram = exampleSvg\nnewDiagram = exampleSvg",
+        excerpt(terms, 204, 214, "Read the saved term into the edit form"),
+        excerpt(fixture, 15, 22, "SVG fixture"),
+        excerpt(spec, 214, 221, "Seed and open the test term"))),
+    step("Preview the draft", "Browser", "The test replaces Client with Browser in the SVG string. The form stores the draft. Preview parses and renders that string locally.", preview, spec, 219, "review-preview",
+      trace("changed = exampleSvg.replaceAll(\"Client\", \"Browser\")\nmode = \"code\"", "newDiagram contains " + browserTitle + "\nmode = \"preview\"",
+        excerpt(terms, 240, 243, "Store the input in React state"),
+        excerpt(field, 305, 318, "Parse the current draft"),
+        excerpt(field, 347, 354, "Switch to Preview"))),
+    step("Cancel", "Client", "Cancel exits edit mode. The saved view reads the saved term. SC-6 checks the Client label and reloads the original source from the API.", preview, spec, 226, "review-cancel",
+      trace("Draft title = Browser\nSaved title = Client", "onEditMode(false)\nSaved view shows Client\nGET diagram === exampleSvg",
+        excerpt(terms, 269, 272, "Exit edit mode"),
+        excerpt(terms, 600, 604, "Render the saved diagram"),
+        excerpt(spec, 226, 232, "Check the label and stored value"))),
+    step("Submit the edited form", "", "The test reopens the form, enters the same edited SVG, and clicks Update. The form validates the draft and passes it to the mutation.", inferred, spec, 233, null,
+      trace("newDiagram = changed\nchanged contains " + browserTitle, "UpdateTermInput.diagram = changed",
+        excerpt(terms, 245, 258, "Validate and pass the draft to the mutation"),
+        excerpt(spec, 233, 235, "Refill the draft and click Update"))),
+    step("Send an update", "diagram: SVG with Browser", "The mutation calls the HTTP action. The action serializes the same SVG string in the JSON body of a PATCH request.", inferred, actions, 92, null,
+      trace("termInputs.term = term.name\ntermInputs.diagram = changed",
+        "PATCH /terms/{encoded term.name}\nJSON body diagram = changed",
+        excerpt(hooks, 48, 57, "Call the HTTP action"),
+        excerpt(actions, 92, 108, "Build the request"))),
+    step("Validate the update", "", "FastAPI validates the diagram field before it calls the route. The validator checks the SVG and returns an accepted source string as supplied.", inferred, models, 24, null,
+      trace("JSON diagram = changed\nSVG contains " + browserTitle, "payload.diagram = changed",
+        excerpt(models, 14, 27, "Bind the validator to the diagram field"),
+        excerpt(validator, 72, 92, "Load the rules and parse the SVG"),
+        excerpt(validator, 190, 196, "Return the accepted source"))),
+    step("Store the updated SVG", "t.diagram = edited SVG", "The route passes the validated string to Cypher. The query replaces t.diagram because the update includes a value.", inferred, api, 122, null,
+      trace("payload.diagram = changed\n$updated_diagram = changed", "t.diagram = changed\nStored SVG contains " + browserTitle,
+        excerpt(api, 127, 135, "Update the Neo4j term"),
+        excerpt(api, 136, 143, "Pass the validated diagram as a query parameter"))),
+    step("Refresh the saved view", "Browser", "The mutation invalidates the detail query. The saved view renders its updated value. SC-6 checks Browser and confirms that a GET returns the exact edited source.", preview, spec, 235, "edited-diagram",
+      trace("Cached diagram contains " + client, "Saved view shows Browser\nGET diagram === changed",
+        excerpt(hooks, 48, 57, "Invalidate term details after update"),
+        excerpt(terms, 600, 604, "Read the current diagram into the saved view"),
+        excerpt(spec, 235, 240, "Check the updated view and GET result"))),
   ],
 };
+
+const browserTraces = new Map([
+  [45, trace("exampleSvg contains Client, Server, and their arrow", "Preview shows both shapes and the arrow\nPOST count = 0",
+    excerpt(field, 371, 390, "Render Preview from the parsed source"),
+    excerpt(spec, 45, 60, "Paste the fixture and verify Preview"))],
+  [65, trace("source adds whitespace and Client café &amp; tea", "clipboard.writeText receives the exact source",
+    excerpt(actions, 68, 84, "Send the original source to Create"),
+    excerpt(field, 321, 329, "Copy the exact value"),
+    excerpt(spec, 85, 101, "Check the mocked clipboard"))],
+  [108, trace("zoom = 1\npan = { x: 0, y: 0 }", "Zoom in gives scale(1.25)\nReset gives translate(0 0) scale(1)",
+    excerpt(field, 128, 133, "Reset the view state"),
+    excerpt(field, 212, 219, "Increase zoom in quarter steps"),
+    excerpt(spec, 114, 134, "Check zoom, pan, and reset"))],
+  [147, trace("Drag Client by (30, 20) screen pixels", "Client and the source endpoint move together\nStored source === exampleSvg",
+    excerpt(field, 101, 119, "Convert pointer motion to an offset"),
+    excerpt(field, 186, 197, "Apply offsets to the connector"),
+    excerpt(spec, 161, 178, "Check geometry and storage"))],
+  [196, trace("Select Client with a pointer. Select Server with Enter.", "Shape details shows the selected node's description",
+    excerpt(field, 120, 126, "Select a node when the pointer did not drag"),
+    excerpt(field, 167, 177, "Select a node with the keyboard"),
+    excerpt(spec, 201, 211, "Check the two selected descriptions"))],
+  [249, trace("exampleSvg contains url(#missing) instead of url(#arrow)", "The parser reports a missing marker\nThe test then saves the corrected exampleSvg",
+    excerpt(format, 218, 226, "Check referenced marker IDs"),
+    excerpt(format, 278, 285, "Return the validation message"),
+    excerpt(spec, 278, 284, "Show the error and replace the source"))],
+  [287, trace("saved diagram = exampleSvg\nEdit input becomes \"\"", "GET diagram === \"\"\nNo diagram saved yet.",
+    excerpt(validator, 72, 77, "Accept the explicit empty string"),
+    excerpt(api, 127, 135, "Let an empty value replace the stored SVG"),
+    excerpt(field, 399, 403, "Render the empty state"))],
+  [302, trace("Mocked GET diagram = \"Legacy plain text\"", "Code view retains the value\nA corrected PATCH saves exampleSvg",
+    excerpt(field, 305, 318, "Handle a failed parse without replacing the input"),
+    excerpt(field, 381, 399, "Show the original value in Code"),
+    excerpt(spec, 306, 326, "Mock the legacy GET and save the real correction"))],
+  [333, trace("dockerSvg contains ordinary SVG without interaction metadata", "Preview renders the source\nShape dragging is unavailable",
+    excerpt(format, 218, 239, "Parse SVG and check whether movement is enabled"),
+    excerpt(field, 371, 379, "Render a valid diagram"),
+    excerpt(spec, 343, 364, "Load the Docker fixture and verify Preview"))],
+  [427, trace("The test sets the color scheme and loads dockerSvg", "Code, Preview, Copy, Zoom, and Reset fit in one row",
+    excerpt(field, 330, 354, "Place the mode controls in the toolbar"),
+    excerpt("frontend/src/diagram/diagram.css", 20, 46, "Apply control styles"),
+    excerpt(spec, 471, 482, "Verify the toolbar and footnote"))],
+]);
+
+const apiTraces = new Map([
+  [22, trace("Test redirects FORMAT_PATH to a temporary path", "maxDepth = 1 rejects the SVG\nRestoring the file accepts it again",
+    excerpt(validator, 72, 82, "Read the current rules on each validation"),
+    excerpt(apiSpec, 22, 36, "Replace the rule file during the test"))],
+  [38, trace("case[\"source\"] from svg-cases.json", "An accepted case returns the same string\nA rejected case raises PydanticCustomError",
+    excerpt(validator, 72, 92, "Check and parse the source"),
+    excerpt(validator, 190, 196, "Return the original source"),
+    excerpt(apiSpec, 38, 45, "Check valid and invalid fixtures"))],
+  [47, trace("JSON name = Example\nJSON diagram = case[\"source\"]\nDatabase driver is a MagicMock",
+    "Accepted SVG is passed to execute_query unchanged\nRejected SVG returns 422 before execute_query",
+    excerpt(models, 14, 27, "Validate the fields before the route"),
+    excerpt(apiSpec, 69, 86, "Check HTTP status and captured query parameters"),
+    excerpt(apiSpec, 87, 95, "Check the invalid response and mock call count"))],
+]);
 
 function browser(title, line, attachment, value, detail, path = ["test", "editor"]) {
   return {
     title,
     source: source(spec, line),
     path,
-    steps: [step("Check the result", value, detail, preview, spec, line, attachment)],
+    steps: [step("Trace the implementation", value, detail, preview, spec, line, attachment, browserTraces.get(line))],
   };
 }
 
 function apiTest(title, line, detail) {
-  const file = "tests/test_svg_diagram.py";
   return {
     title,
-    source: source(file, line),
+    source: source(apiSpec, line),
     path: ["test", "api"],
-    steps: [step("Check the result", "", detail, preview, file, line)],
+    steps: [step("Trace the implementation", "", detail, preview, apiSpec, line, null, apiTraces.get(line))],
   };
 }
 
 const save = browser("SC-2 SVG: save, reopen, and copy exact source", 65, "saved-source",
   "Client café & tea", "The test verifies that save, reopen, and copy preserve the source.", editPath);
-const ordinary = browser("SC-1 SVG: ordinary Docker source saves unchanged and supports view controls", 333, null,
+const ordinary = browser("SC-1 SVG: ordinary Docker source saves unchanged and supports view controls", 333, "docker-preview-before-save",
   "Docker image diagram", "The fixture renders and retains its exact SVG. The test checks view controls on this ordinary SVG.", editPath);
 const move = browser("SC-4 SVG: temporary shape movement keeps connections after zoom and pan", 147, "moved-with-connection",
   "Client moves by a drag of (30, 20) screen pixels", "The test checks shape geometry and connected endpoints and checks source after movement.");
-const recover = browser("SC-7 SVG: invalid input is retained and can be corrected", 249, null,
+const recover = browser("SC-7 SVG: invalid input is retained and can be corrected", 249, "missing-marker-error",
   "Invalid fixture → supported SVG", "The test checks feedback, retention of the invalid input, and a corrected save.", editPath);
 
 const behaviors = [
@@ -82,7 +177,7 @@ const behaviors = [
     title: "Clear a saved diagram",
     detail: "The optional SVG field can be cleared in the edit form.",
     sources: [source(terms, 240), source("frontend/src/actions.tsx", 92)],
-    tests: [browser("SC-8 SVG: clear the optional diagram", 287, null, "diagram: \"\"", "The browser test checks that the diagram is cleared after Update.", editPath)],
+    tests: [browser("SC-8 SVG: clear the optional diagram", 287, "empty-diagram", "diagram: \"\"", "The browser test checks that the diagram is cleared after Update.", editPath)],
     gaps: [],
   },
   {
@@ -96,7 +191,7 @@ const behaviors = [
     title: "Zoom, pan, and reset a diagram",
     detail: "The viewer applies temporary view changes without changing the stored SVG.",
     sources: [source(field, 41), source(field, 82)],
-    tests: [browser("SC-3 SVG: zoom, pan, reset, and narrow layout", 108, null, "Default view → zoom and pan → default view", "The test checks transform changes and reset at a narrow width."), ordinary],
+    tests: [browser("SC-3 SVG: zoom, pan, reset, and narrow layout", 108, "narrow-diagram", "Default view → zoom and pan → default view", "The test checks transform changes and reset at a narrow width."), ordinary],
     gaps: [],
   },
   {
@@ -128,14 +223,14 @@ const behaviors = [
     title: "Allow a legacy diagram value to be corrected",
     detail: "A previously stored text value remains available in Code view. The user can replace it with supported SVG.",
     sources: [source(field, 291), source(terms, 204)],
-    tests: [browser("SC-9 SVG: simulated legacy read preserves old text for correction", 302, null, "Old diagram text → supported SVG", "The test simulates the legacy GET, then saves valid SVG to the isolated stack.", editPath)],
+    tests: [browser("SC-9 SVG: simulated legacy read preserves old text for correction", 302, "legacy-text-preserved", "Old diagram text → supported SVG", "The test simulates the legacy GET, then saves valid SVG to the isolated stack.", editPath)],
     gaps: ["The setup simulates a legacy GET. It does not migrate or read a database seeded with legacy text."],
   },
   ...["light", "dark"].map((theme) => ({
     title: "Keep the SVG controls compact in " + theme + " mode",
     detail: "The field puts labeled icons and mode controls on one row. It puts the help text under the image and follows the active theme.",
     sources: [source(field, 291), source("frontend/src/diagram/diagram.css", 1)],
-    tests: [browser("SC-1 SVG: compact toolbar and footnote in " + theme + " mode", 427, null,
+    tests: [browser("SC-1 SVG: compact toolbar and footnote in " + theme + " mode", 427, "toolbar-" + theme,
       theme + " theme", "The test checks layout and access to controls at desktop and narrow viewport widths.")],
     gaps: [],
   })),

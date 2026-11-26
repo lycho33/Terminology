@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
@@ -17,9 +19,12 @@ const publicFiles = new Map([
 ]);
 const publicRoot = new URL("./public/", import.meta.url);
 const commit = /^[a-f0-9]{40}$/;
+const run = promisify(execFile);
 const validPath = (path) =>
   typeof path === "string" && /^[\w./ @+()-]+$/.test(path) &&
   !path.startsWith("/") && !path.split("/").some((part) => part === "..");
+const sourceLocation = (item) => item && validPath(item.path) && Number.isSafeInteger(item.line) && item.line > 0;
+const codeRange = (item) => sourceLocation(item) && Number.isSafeInteger(item.end) && item.end >= item.line;
 const json = (response, status, body) => write(response, status, "application/json; charset=utf-8", JSON.stringify(body));
 
 function write(response, status, type, content) {
@@ -46,17 +51,50 @@ async function readBody(request) {
 
 function normalizePilotOrDraft(report) {
   const ids = new Set(components.map(({ id }) => id));
-  const source = (item) => item && validPath(item.path) && Number.isSafeInteger(item.line) && item.line > 0;
   return report.behaviors.map((behavior, behaviorIndex) => ({
     ...behavior,
     id: String(behaviorIndex),
-    sources: behavior.sources.filter(source),
-    tests: behavior.tests.filter((test) => source(test.source)).map((test, testIndex) => ({
+    sources: behavior.sources.filter(sourceLocation),
+    tests: behavior.tests.filter((test) => sourceLocation(test.source)).map((test, testIndex) => ({
       ...test,
       id: behaviorIndex + "." + testIndex,
       path: test.path.filter((id) => ids.has(id)),
-      steps: test.steps.filter((step) => source(step.source)),
+      steps: test.steps.filter((step) => sourceLocation(step.source)).map((step) => ({
+        ...step,
+        code: (step.code ?? []).filter(codeRange).slice(0, 3),
+      })),
     })),
+  }));
+}
+
+async function readRepositorySource({ repoPath, github, head, path }) {
+  if (!commit.test(head) || !validPath(path)) throw new Error("Invalid source reference.");
+  try {
+    const { stdout } = await run("git", [
+      "-C", repoPath ?? process.cwd(), "show", head + ":" + path,
+    ], { timeout: 4_000, maxBuffer: 1024 * 1024 });
+    return stdout;
+  } catch {
+    return github.source(head, path);
+  }
+}
+
+async function stepExcerpts(step, read) {
+  const anchors = step.code.length ? step.code : [
+    { ...step.source, end: step.source.line + 7, label: "Step source" },
+  ];
+  const files = new Map();
+  return Promise.all(anchors.map(async (anchor) => {
+    try {
+      if (!files.has(anchor.path)) files.set(anchor.path, read(anchor.path));
+      const content = (await files.get(anchor.path)).split(/\r?\n/);
+      const start = anchor.line - 1;
+      const lines = content.slice(start, Math.min(anchor.end, start + 26));
+      if (!lines.length) return { ...anchor, unavailable: true };
+      return { ...anchor, end: anchor.line + lines.length - 1, lines };
+    } catch {
+      return { ...anchor, unavailable: true };
+    }
   }));
 }
 
@@ -91,7 +129,7 @@ export function reviewBody(data) {
 
 export function createReviewer({
   github = createGitHub(), loadAnalysis = analyze, runBrowser = captureBrowser,
-  repoPath, priorPilotRun,
+  readSource = readRepositorySource, repoPath, priorPilotRun,
 } = {}) {
   const key = randomUUID();
   const reviews = new Map();
@@ -128,7 +166,7 @@ export function createReviewer({
     }
     if (route === "/api/session" && request.method === "GET") return json(response, 200, { key });
     if (route === "/api/prs" && request.method === "GET") return json(response, 200, await github.list());
-    const match = /^\/api\/prs\/([1-9][0-9]*)(?:\/(capture|send|images)(?:\/([^/]+)\/([^/]+))?)?$/.exec(route);
+    const match = /^\/api\/prs\/([1-9][0-9]*)(?:\/(capture|send|images|source)(?:\/([^/]+)\/([^/]+))?)?$/.exec(route);
     if (!match) return json(response, 404, { error: "Page unavailable." });
     const number = Number(match[1]);
     const action = match[2];
@@ -158,8 +196,20 @@ export function createReviewer({
 
     const pr = reviews.get(number);
     if (!pr) return json(response, 409, { error: "Open this review first." });
+    const testFor = (id) => pr.behaviors.flatMap((behavior) => behavior.tests).find((test) => test.id === id);
+    if (action === "source" && request.method === "GET") {
+      if (url.searchParams.get("head") !== pr.head || url.searchParams.get("base") !== pr.base) {
+        return json(response, 409, { error: "Open the current review before loading its source." });
+      }
+      const test = testFor(match[3]);
+      const index = Number(match[4]);
+      const step = Number.isInteger(index) && test?.steps[index];
+      if (!step) return json(response, 404, { error: "This walkthrough step is unavailable." });
+      const excerpts = await stepExcerpts(step, (path) => readSource({ repoPath, github, head: pr.head, path }));
+      return json(response, 200, { excerpts });
+    }
     if (action === "images" && request.method === "GET") {
-      const test = pr.behaviors.flatMap((behavior) => behavior.tests).find((test) => test.id === match[3]);
+      const test = testFor(match[3]);
       const item = test && await evidenceFor(pr, test);
       const path = item?.files.get(decodeURIComponent(match[4] ?? ""));
       if (!path) return json(response, 404, { error: "Screenshot unavailable." });
@@ -173,7 +223,7 @@ export function createReviewer({
     const data = await readBody(request);
     if (data.head !== pr.head || data.base !== pr.base) return json(response, 409, { error: "Refresh the review before trying this action." });
     if (action === "capture") {
-      const test = pr.behaviors.flatMap((behavior) => behavior.tests).find((test) => test.id === data.test);
+      const test = testFor(data.test);
       if (!test) return json(response, 404, { error: "Choose a browser test in this review." });
       const evidence = await runBrowser({ pr, test, repoPath });
       captures.set(captureKey(pr, test), evidence);

@@ -76,7 +76,7 @@ test("stable map distinguishes changed source, test code, and renamed files", ()
   assert.equal(isPilot({ ...pr, base: "b".repeat(40) }), false);
 });
 
-test("pilot walkthrough serves named evidence and sends one selected note once", async (t) => {
+test("pilot walkthrough pins source and evidence and sends one selected note once", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "reviewer-test-"));
   t.after(() => rm(root, { force: true, recursive: true }));
   const attachments = [];
@@ -103,6 +103,11 @@ test("pilot walkthrough serves named evidence and sends one selected note once",
       },
     },
     loadAnalysis: async () => pilotBehaviorReport,
+    readSource: async ({ head, path }) => {
+      assert.equal(head, pilotHead);
+      if (!path.endsWith("Term.tsx")) throw new Error("Not in the test checkout");
+      return Array.from({ length: 300 }, (_, index) => "source line " + (index + 1)).join("\n");
+    },
     priorPilotRun: root,
   });
   server.listen(0, "127.0.0.1");
@@ -115,6 +120,18 @@ test("pilot walkthrough serves named evidence and sends one selected note once",
   assert.ok(displayed.behaviors.some(({ title, tests }) => title.includes("cached") && !tests.length));
   const editTest = displayed.behaviors.flatMap((item) => item.tests).find((item) => item.title === pilotCaptureTest);
   assert.deepEqual(editTest.steps.filter((step) => step.attachment).map((step) => step.value), ["Browser", "Client", "Browser"]);
+  const stepUrl = "/api/prs/14/source/" + editTest.id + "/0";
+  const revision = "?head=" + pilotHead + "&base=" + base;
+  const { excerpts } = await read(stepUrl + revision);
+  assert.equal(excerpts[0].path, "frontend/src/terms/Term.tsx");
+  assert.equal(excerpts[0].line, 204);
+  assert.equal(excerpts[0].end, 214);
+  assert.equal(excerpts[0].lines[0], "source line 204");
+  assert.equal(excerpts[0].lines.at(-1), "source line 214");
+  assert.equal(excerpts[1].unavailable, true);
+  assert.equal((await fetch(host + stepUrl + "?head=" + "a".repeat(40) + "&base=" + base)).status, 409);
+  assert.equal((await fetch(host + "/api/prs/14/source/" + editTest.id + "/99" + revision)).status, 404);
+
   const images = displayed.evidence[editTest.id].images;
   assert.equal(await (await fetch(host + images["review-cancel"])).text(), "test-review-cancel");
   const { key } = await read("/api/session");

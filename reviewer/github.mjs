@@ -84,6 +84,15 @@ export function createGitHub(command = githubCommand) {
       };
     },
 
+    async source(head, path) {
+      const file = path.split("/").map(encodeURIComponent).join("/");
+      const contents = await json([endpoint + "/contents/" + file, "-f", "ref=" + head, "--method", "GET"]);
+      if (contents.type !== "file" || contents.encoding !== "base64") {
+        throw new Error("GitHub did not return a text file for this revision.");
+      }
+      return Buffer.from(contents.content, "base64").toString("utf8");
+    },
+
     async send(number, { head, base, body }) {
       const pull = await read(number);
       if (pull.state !== "open" || pull.head.sha !== head || pull.base.sha !== base) {

@@ -14,7 +14,10 @@ Ask Codex to open the loopback URL printed by the command in a panel beside the
 chat. Keep the process running while you use the panel. The panel opens
 with an architecture map. Select a draft or open PR below it to highlight
 the affected areas. Select a test in the behavior list to open its walkthrough
-dialog. Use **Preview selected notes** and
+dialog. Each step shows the implementation lines from the reviewed commit
+and values from the test fixture. The walkthrough labels source-derived
+steps and shows browser captures at the tested UI checkpoints. Use
+**Preview selected notes** and
 **Send to GitHub** to send the notes that you selected.
 
 The reviewer reads the linked closing issue when GitHub returns one. It uses

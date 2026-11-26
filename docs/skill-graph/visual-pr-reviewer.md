@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-1. Next action: review the map and the changed-file labels with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the code walkthrough with the user.
 
 ## Decisions
 
@@ -15,7 +15,7 @@
 - Show an architecture map before PR selection. Use architecture-vision.png as the visual reference. Base the map labels and connections on current source.
 - Keep the map in place after PR selection. Highlight the affected components. Show the behaviors and associated tests below the map. Call out missing tests.
 - Open a separate walkthrough dialog when the user selects a test. Closing the dialog returns the user to the test list.
-- Use fixed values from test inputs. Capture visible steps with the browser test. Mark the revision tested.
+- Show the implementation code beside the test inputs and the result of each walkthrough step. Capture visible steps with the browser test and mark the revision tested.
 - Send the notes that the reviewer selects. Use an explicit send action.
 - The approved plan describes the expected workflow. The user did not record a separate system-change prediction.
 
@@ -27,7 +27,7 @@ flowchart LR
     github["GitHub"] -->|"open PRs and drafts"| picker["PR picker"]
     map --> picker
     picker -->|"selected PR and revision"| view["Map highlights and behavior list"]
-    view -->|"selected test"| steps["Walkthrough dialog"]
+    view -->|"selected test"| steps["Implementation code and test values"]
     runner["Isolated browser runner"] -->|"named screenshots and result"| steps
     view -->|"behavior note"| drafts["Local drafts"]
     steps -->|"step note"| drafts
@@ -64,13 +64,24 @@ The user requested file names in the changed-file list. The list label
 uses the final part of each path. The browser check verified that
 DiagramField.tsx displays by name and opens its full path at the PR head.
 
+## SC-2 correction
+
+The user asked to follow the implementation code with the selected
+test's data. The dialog now shows source lines from the PR head next
+to each step's input and result. SC-6 traces the saved SVG through the
+edit form, Preview, Cancel, the submitted mutation, PATCH validation,
+the Neo4j write, and the refreshed view. The fixture changes Client to
+Browser. The walkthrough describes intermediate values from the source
+and shows snapshots at the browser assertions. The endpoint rejects a
+source request with a stale review revision.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
 | --- | --- | --- |
 | AC-1 | The Codex panel starts with an architecture map. Select an open PR or draft below it and see the affected areas. | Chromium confirmed that the map loaded while the live PR list was held. PR #14 highlighted Frontend and API. Unit tests check paging and filtering. |
 | AC-2 | Show intent, changed components, behaviors, associated tests, and test gaps. | Chromium opened #14 and showed its description, changed components, test gaps, and test buttons in the behavior list. Unit tests check linked-issue preference. A separate live request drafted a report for #13. |
-| AC-3 | Open the test dialog with the path, values, source, screenshots, and tested revision. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. The browser check also ran SC-6 from the panel. |
+| AC-3 | Open a test. Show actual code with fixture inputs, results, and browser screenshots where available. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. Chromium also checked the code ranges, fixture values in the dialog, and transitions before and after the PATCH and database steps. |
 | AC-4 | Send the selected notes to the reviewed PR revision. | The browser check intercepted the send and received one selected note. The other note remained local. Server tests verify the request, stale revision response, and duplicate submission ID. Live posting remains unverified. |
 
 ## Ordered user review
@@ -78,7 +89,7 @@ DiagramField.tsx displays by name and opens its full path at the PR head.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select SC-6 from the edit behavior. In the dialog, step through Preview, Cancel, and Save. | See the components, source, gaps, and label sequence Browser, Client, Browser. | 02-test-walkthrough.png. Isolated test and panel pass. | Pending |
+| SC-2 | AC-2, AC-3 | Select SC-6. Step through React, PATCH, and Neo4j from the dialog. | See the implementation code, the tested values, and the label sequence Browser, Client, Browser. | 02-test-walkthrough.png. Isolated test and panel pass. | Pending |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -88,7 +99,8 @@ DiagramField.tsx displays by name and opens its full path at the PR head.
 - npm run test:e2e --prefix frontend -- --project=chromium --grep 'SC-6 SVG:' from a temporary copy of PR #14
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
-- Browser evidence: /private/tmp/terminology-reviewer-filenames-verification
+- Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
+- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-code-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

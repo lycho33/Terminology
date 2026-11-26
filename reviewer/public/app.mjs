@@ -23,6 +23,7 @@ let captureMessage = "";
 let capturePending = false;
 let sessionKey;
 const reviewing = new Map();
+const codeRequests = new Map();
 
 function element(tag, attributes = {}, ...children) {
   const item = document.createElement(tag);
@@ -275,6 +276,59 @@ function statusBadge(evidence) {
     evidence.result === "passed" ? "green" : "amber");
 }
 
+function excerptBlock(excerpt) {
+  const name = excerpt.path.split("/").at(-1);
+  const range = name + ":" + excerpt.line + (excerpt.end > excerpt.line ? "–" + excerpt.end : "");
+  const heading = element("div", { class: "excerpt-heading" },
+    element("strong", {}, excerpt.label), sourceLink(excerpt, range));
+  if (excerpt.unavailable) {
+    return element("figure", { class: "code-excerpt" }, heading,
+      element("p", {}, "This excerpt could not be loaded. Open its source link."));
+  }
+  const lines = excerpt.lines.map((line, index) =>
+    element("span", { class: "excerpt-line" },
+      element("span", { class: "line-number", "aria-hidden": "true" }, excerpt.line + index),
+      element("span", {}, line || " "), "\n"));
+  return element("figure", { class: "code-excerpt" }, heading,
+    element("pre", {}, element("code", {}, lines)));
+}
+
+function implementationCode(pr, test, index) {
+  const body = element("div", { class: "excerpt-list" }, status("Loading source…"));
+  const section = element("section", { class: "implementation-code", "aria-label": "Implementation code" },
+    element("h5", {}, "Implementation code"), body);
+  const revision = new URLSearchParams({ head: pr.head, base: pr.base });
+  const url = "/api/prs/" + pr.number + "/source/" + test.id + "/" + index + "?" + revision;
+  if (!codeRequests.has(url)) {
+    const request = api(url).catch((error) => {
+      codeRequests.delete(url);
+      throw error;
+    });
+    codeRequests.set(url, request);
+  }
+  codeRequests.get(url).then(({ excerpts }) => {
+    body.replaceChildren(...excerpts.map(excerptBlock));
+  }).catch((error) => body.replaceChildren(status(error.message, true)));
+  return section;
+}
+
+function fixtureValues(step) {
+  const after = step.after || step.value;
+  if (!step.before && !after) return null;
+  return element("section", { class: "fixture-values", "aria-label": "Test values" },
+    element("h5", {}, "Test values"),
+    step.before ? element("div", { class: "fixture-value" }, element("strong", {}, "Input"),
+      element("pre", {}, element("code", {}, step.before))) : null,
+    after ? element("div", { class: "fixture-value" }, element("strong", {}, "Result"),
+      element("pre", {}, element("code", {}, after))) : null);
+}
+
+function selectStep(index) {
+  stepIndex = index;
+  renderWalkthrough();
+  walkthroughBody.querySelector(".step-list [aria-current=step]").focus();
+}
+
 function walkthrough(pr) {
   const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" },
     selectedTest ? "Test walkthrough" : "Behavior note");
@@ -299,8 +353,10 @@ function walkthrough(pr) {
   if (step) {
     details.append(element("div", { class: "checkpoint-heading" },
       element("h4", {}, step.title), tag(step.basis, "neutral")),
-      step.value ? element("pre", {}, element("code", {}, step.value)) : null,
-      element("p", {}, step.detail), sourceLink(step.source));
+      element("p", {}, step.detail),
+      sourceLink(step.source, "Step reference"),
+      element("div", { class: "checkpoint-grid" },
+        implementationCode(pr, test, stepIndex), fixtureValues(step)));
     if (step.attachment) {
       const image = evidence?.images[step.attachment];
       details.append(image ? element("figure", { class: "capture" }, element("img", {
@@ -318,12 +374,13 @@ function walkthrough(pr) {
         () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null),
     captureMessage ? status(captureMessage) : null,
     path,
+    test.steps.length > 1 ? element("div", { class: "step-nav", "aria-label": "Step controls" },
+      button("Previous", () => selectStep(stepIndex - 1), "subtle", { disabled: stepIndex === 0 ? "" : null }),
+      element("span", {}, "Step " + (stepIndex + 1) + " of " + test.steps.length),
+      button("Next", () => selectStep(stepIndex + 1), "subtle", { disabled: stepIndex === test.steps.length - 1 ? "" : null })) : null,
     element("div", { class: "step-list", "aria-label": "Walkthrough steps" },
-      test.steps.map((item, index) => button(item.title, () => {
-        stepIndex = index;
-        renderWalkthrough();
-        walkthroughBody.querySelector(".step-list [aria-current=step]").focus();
-      }, "step", { "aria-current": index === stepIndex ? "step" : null }))),
+      test.steps.map((item, index) => button(item.title, () => selectStep(index),
+        "step", { "aria-current": index === stepIndex ? "step" : null }))),
     details,
     addNote(selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : ""), step?.source ?? test.source));
 }

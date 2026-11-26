@@ -69,6 +69,8 @@ async function analyzeRevision(pr, repoPath) {
       "Use source locations from that head only. Link tests only if their assertions support the behavior.",
       "Use the exact Playwright test title and repo-relative file path. Use actual attachment names only if verified in the test.",
       "Call out concrete gaps in each behavior. For test steps use fixture inputs and source. Do not claim a test ran.",
+      "Walk through the implementation code reached by the test. Give each step a short exact source range for the application code and use the test as separate evidence.",
+      "Use before and after for concrete fixture values and their source-derived or asserted results. Use an empty string or array where the evidence is unavailable. Do not invent runtime values.",
       "Component IDs for a test path are test, editor, data, api, database, runtime, and docs.",
       "Return the requested JSON shape. If evidence is missing, state the gap and leave unverified links empty.",
       "",

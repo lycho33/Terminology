@@ -70,6 +70,17 @@ try {
   await editTest.click();
   const walkthrough = page.getByRole("dialog", { name: "Test walkthrough" });
   await walkthrough.waitFor();
+  const code = walkthrough.getByRole("region", { name: "Implementation code" });
+  const values = walkthrough.getByRole("region", { name: "Test values" });
+  await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
+  assert.match(await values.innerText(), /exampleSvg contains <title>Client<\/title>/);
+  assert.ok(await code.getByRole("link", { name: "Term.tsx:204–214" }).isVisible());
+  await walkthrough.getByRole("button", { name: "Next", exact: true }).click();
+  await code.getByText('onClick={() => setMode("preview")}', { exact: false }).waitFor();
+  assert.match(await values.innerText(), /<title>Browser<\/title>/);
+  await walkthrough.getByRole("button", { name: "Previous", exact: true }).click();
+  await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
+
   await page.keyboard.press("Escape");
   await walkthrough.waitFor({ state: "hidden" });
   assert.equal(await editTest.evaluate((item) => item === document.activeElement), true);
@@ -86,12 +97,19 @@ try {
 
   for (const [button, label] of [["Preview the draft", "Browser"], ["Cancel", "Client"], ["Refresh the saved view", "Browser"]]) {
     await page.getByRole("button", { name: button, exact: true }).click();
-    assert.equal(await page.locator(".checkpoint code").textContent(), label);
+    assert.match(await values.innerText(), new RegExp(label));
     const image = page.getByRole("img", { name: button + " from the Chromium browser test" });
     await image.waitFor();
     await page.waitForFunction(() => document.querySelector(".capture img")?.naturalWidth > 0);
   }
+  await walkthrough.getByRole("button", { name: "Send an update", exact: true }).click();
+  await code.getByText('method: "PATCH"', { exact: false }).waitFor();
+  assert.match(await values.innerText(), /JSON body diagram = changed/);
+  await walkthrough.getByRole("button", { name: "Store the updated SVG", exact: true }).click();
+  await code.getByText("t.diagram = CASE WHEN", { exact: false }).waitFor();
+  assert.match(await values.innerText(), /Stored SVG contains <title>Browser<\/title>/);
   await walkthrough.screenshot({ path: root + "/02-test-walkthrough.png" });
+
 
   await page.getByRole("textbox", { name: "Review note" }).fill("Selected verification note");
   await page.getByRole("button", { name: "Save draft" }).click();
