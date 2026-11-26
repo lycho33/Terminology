@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-1. Next action: review the map-first correction with the user.
+- Current role: UI Verifier. Current scenario: SC-1. Next action: review the map and the changed-file labels with the user.
 
 ## Decisions
 
@@ -60,6 +60,10 @@ Neo4j shows no direct changes. The selected PR shows behavior rows and
 test buttons. A test button opens a dialog. Escape closes the dialog and
 returns focus to the button.
 
+The user requested file names in the changed-file list. The list label
+uses the final part of each path. The browser check verified that
+DiagramField.tsx displays by name and opens its full path at the PR head.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -73,7 +77,7 @@ returns focus to the button.
 
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
-| SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-architecture-pr14.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
+| SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
 | SC-2 | AC-2, AC-3 | Select SC-6 from the edit behavior. In the dialog, step through Preview, Cancel, and Save. | See the components, source, gaps, and label sequence Browser, Client, Browser. | 02-test-walkthrough.png. Isolated test and panel pass. | Pending |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
@@ -84,7 +88,7 @@ returns focus to the button.
 - npm run test:e2e --prefix frontend -- --project=chromium --grep 'SC-6 SVG:' from a temporary copy of PR #14
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
-- Browser evidence: /private/tmp/terminology-reviewer-map-verification
+- Browser evidence: /private/tmp/terminology-reviewer-filenames-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

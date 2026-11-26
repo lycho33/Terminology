@@ -55,6 +55,16 @@ try {
   assert.ok(await map.getByText("Other changed areas", { exact: false }).isVisible());
   await page.screenshot({ path: root + "/01-architecture-pr14.png" });
 
+  const editorChanges = map.locator("details.map-module").filter({
+    has: page.getByText("Term editor", { exact: true }),
+  });
+  await editorChanges.locator("summary").click();
+  const file = editorChanges.getByRole("link", { name: "DiagramField.tsx", exact: true });
+  assert.ok(await file.isVisible());
+  assert.match(await file.getAttribute("href"), /\/blob\/cfc2d1054619f4bcd0fbb6afa278f2985fa5891c\/frontend\/src\/diagram\/DiagramField\.tsx#L1$/);
+  assert.ok((await editorChanges.getByRole("link").allTextContents()).every((label) => !label.includes("/")));
+  await map.screenshot({ path: root + "/01-changed-file-names.png" });
+
   const editTest = page.getByRole("button", { name: /SC-6 SVG: edit, cancel/ });
   assert.ok(await editTest.isVisible());
   await editTest.click();

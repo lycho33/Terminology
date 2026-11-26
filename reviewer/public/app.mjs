@@ -210,7 +210,7 @@ function mapModule(node) {
   return element("details", { class: "map-module changed" },
     element("summary", {}, element("span", {}, node.label), tag(count + (count === 1 ? " file" : " files"), "changed-label")),
     element("ul", {}, node.files.map(({ path, revision }) =>
-      element("li", {}, sourceLink({ path, line: 1, revision }, path)))));
+      element("li", {}, sourceLink({ path, line: 1, revision }, path.split("/").at(-1))))));
 }
 
 function behaviorList(pr) {
