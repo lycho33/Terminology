@@ -14,7 +14,8 @@ Ask Codex to open the loopback URL printed by the command in a panel beside the
 chat. Keep the process running while you use the panel. The panel opens
 with an architecture map. Select a draft or open PR below it to highlight
 the affected areas. Select a test in the behavior list to open its walkthrough
-dialog. Each step shows the implementation lines from the reviewed commit
+in the full panel. Use Previous, Next, or the step selector to move through
+the code. Each step shows implementation lines from the reviewed commit
 and values from the test fixture. The walkthrough labels source-derived
 steps and shows browser captures at the tested UI checkpoints. Use
 **Preview selected notes** and

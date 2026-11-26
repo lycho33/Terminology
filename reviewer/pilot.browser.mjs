@@ -13,7 +13,7 @@ const root = process.env.REVIEWER_VERIFY_DIR ?? await mkdtemp(join(tmpdir(), "te
 await mkdir(root, { recursive: true });
 const browser = await chromium.launch();
 try {
-  const page = await browser.newPage({ viewport: { width: 940, height: 950 } });
+  const page = await browser.newPage({ viewport: { width: 853, height: 802 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   let submitted;
@@ -72,9 +72,23 @@ try {
   await walkthrough.waitFor();
   const code = walkthrough.getByRole("region", { name: "Implementation code" });
   const values = walkthrough.getByRole("region", { name: "Test values" });
+  const chooseStep = async (title) => {
+    const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
+    const labels = await picker.locator("option").allTextContents();
+    const label = labels.find((item) => item.endsWith(" · " + title));
+    assert.ok(label, "Missing walkthrough step " + title);
+    await picker.selectOption({ label });
+  };
   await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
   assert.match(await values.innerText(), /exampleSvg contains <title>Client<\/title>/);
   assert.ok(await code.getByRole("link", { name: "Term.tsx:204–214" }).isVisible());
+  const viewport = page.viewportSize();
+  const dialogBounds = await walkthrough.boundingBox();
+  const codeBounds = await code.boundingBox();
+  assert.equal(dialogBounds.width, viewport.width);
+  assert.equal(dialogBounds.height, viewport.height);
+  assert.ok(codeBounds.width >= viewport.width * 0.9);
+  assert.ok(codeBounds.y < viewport.height / 2);
   await walkthrough.getByRole("button", { name: "Next", exact: true }).click();
   await code.getByText('onClick={() => setMode("preview")}', { exact: false }).waitFor();
   assert.match(await values.innerText(), /<title>Browser<\/title>/);
@@ -96,21 +110,23 @@ try {
   await page.getByText("Chromium passed", { exact: true }).waitFor();
 
   for (const [button, label] of [["Preview the draft", "Browser"], ["Cancel", "Client"], ["Refresh the saved view", "Browser"]]) {
-    await page.getByRole("button", { name: button, exact: true }).click();
+    await chooseStep(button);
     assert.match(await values.innerText(), new RegExp(label));
+    await walkthrough.getByText("Browser screenshot", { exact: true }).click();
     const image = page.getByRole("img", { name: button + " from the Chromium browser test" });
     await image.waitFor();
     await page.waitForFunction(() => document.querySelector(".capture img")?.naturalWidth > 0);
   }
-  await walkthrough.getByRole("button", { name: "Send an update", exact: true }).click();
+  await chooseStep("Send an update");
   await code.getByText('method: "PATCH"', { exact: false }).waitFor();
   assert.match(await values.innerText(), /JSON body diagram = changed/);
-  await walkthrough.getByRole("button", { name: "Store the updated SVG", exact: true }).click();
+  await chooseStep("Store the updated SVG");
   await code.getByText("t.diagram = CASE WHEN", { exact: false }).waitFor();
   assert.match(await values.innerText(), /Stored SVG contains <title>Browser<\/title>/);
   await walkthrough.screenshot({ path: root + "/02-test-walkthrough.png" });
 
 
+  await walkthrough.getByText("Add review note", { exact: true }).click();
   await page.getByRole("textbox", { name: "Review note" }).fill("Selected verification note");
   await page.getByRole("button", { name: "Save draft" }).click();
   await page.getByRole("button", { name: "Close walkthrough" }).click();
@@ -134,6 +150,11 @@ try {
   await editTest.click();
   await walkthrough.waitFor();
   assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));
+  await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
+  const excerptsFit = await code.locator("pre").evaluateAll((items) =>
+    items.every((item) => item.scrollWidth <= item.clientWidth));
+  assert.ok(excerptsFit);
+  await walkthrough.screenshot({ path: root + "/02-test-walkthrough-narrow.png" });
   assert.deepEqual(errors, []);
   console.log("Verified the PR #14 browser walkthrough. Note submission was simulated.");
   console.log("Evidence: " + root);

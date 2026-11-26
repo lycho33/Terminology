@@ -7,14 +7,14 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the code walkthrough with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the full-panel walkthrough with the user.
 
 ## Decisions
 
 - GitHub supplies the PR list, linked issue, and diff. Use the description when there is no linked issue. Limit the list to active PRs, including drafts.
 - Show an architecture map before PR selection. Use architecture-vision.png as the visual reference. Base the map labels and connections on current source.
 - Keep the map in place after PR selection. Highlight the affected components. Show the behaviors and associated tests below the map. Call out missing tests.
-- Open a separate walkthrough dialog when the user selects a test. Closing the dialog returns the user to the test list.
+- Open a full-panel walkthrough when the user selects a test. Keep step navigation in the header. Closing the walkthrough returns the user to the test list.
 - Show the implementation code beside the test inputs and the result of each walkthrough step. Capture visible steps with the browser test and mark the revision tested.
 - Send the notes that the reviewer selects. Use an explicit send action.
 - The approved plan describes the expected workflow. The user did not record a separate system-change prediction.
@@ -75,6 +75,11 @@ Browser. The walkthrough describes intermediate values from the source
 and shows snapshots at the browser assertions. The endpoint rejects a
 source request with a stale review revision.
 
+The user found the result cramped in an 853 px Codex panel. The walkthrough
+now fills the panel. The header has Previous, Next, and a step selector.
+The test values sit above the full-width code. Screenshots, components,
+and notes open on request. The browser checks layout at 853 px and 390 px.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -89,7 +94,7 @@ source request with a stale review revision.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select SC-6. Step through React, PATCH, and Neo4j from the dialog. | See the implementation code, the tested values, and the label sequence Browser, Client, Browser. | 02-test-walkthrough.png. Isolated test and panel pass. | Pending |
+| SC-2 | AC-2, AC-3 | Select SC-6. Step through React, PATCH, and Neo4j from the dialog. | See the implementation code, the tested values, and the label sequence Browser, Client, Browser. | 02-test-walkthrough.png and 02-test-walkthrough-narrow.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -100,7 +105,7 @@ source request with a stale review revision.
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
-- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-code-verification
+- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-layout-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

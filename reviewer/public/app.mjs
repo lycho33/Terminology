@@ -249,8 +249,10 @@ function openWalkthrough(behavior, test = null) {
   selectedTest = test;
   stepIndex = 0;
   captureMessage = "";
+  walkthroughDialog.dataset.view = test ? "test" : "note";
   renderWalkthrough();
   walkthroughDialog.showModal();
+  walkthroughDialog.scrollTop = 0;
   document.getElementById("walkthrough-heading").focus({ preventScroll: true });
 }
 
@@ -326,63 +328,80 @@ function fixtureValues(step) {
 function selectStep(index) {
   stepIndex = index;
   renderWalkthrough();
-  walkthroughBody.querySelector(".step-list [aria-current=step]").focus();
+  walkthroughDialog.scrollTop = 0;
+  document.getElementById("walkthrough-step").focus({ preventScroll: true });
+}
+
+function stepNavigation(test) {
+  if (test.steps.length < 2) return null;
+  const steps = element("select", { id: "walkthrough-step", "aria-label": "Walkthrough step" },
+    test.steps.map((step, index) => element("option", { value: index },
+      (index + 1) + " of " + test.steps.length + " · " + step.title)));
+  steps.value = stepIndex;
+  steps.addEventListener("change", () => selectStep(Number(steps.value)));
+  return element("div", { class: "step-nav", "aria-label": "Step controls" },
+    button("Previous", () => selectStep(stepIndex - 1), "subtle", { disabled: stepIndex === 0 ? "" : null }),
+    steps,
+    button("Next", () => selectStep(stepIndex + 1), "subtle", { disabled: stepIndex === test.steps.length - 1 ? "" : null }));
+}
+
+function screenshotEvidence(step, evidence) {
+  if (!step.attachment) return null;
+  const image = evidence?.images[step.attachment];
+  return element("details", { class: "walkthrough-disclosure" },
+    element("summary", {}, "Browser screenshot"),
+    image ? element("figure", { class: "capture" }, element("img", {
+      src: image, alt: step.title + " from the " + evidence.browser + " browser test",
+    }), element("figcaption", {}, evidence.browser + " · " + evidence.result + " · " + evidence.head.slice(0, 8)))
+      : element("p", { class: "subhead" }, "Run this browser test to capture the step."));
 }
 
 function walkthrough(pr) {
   const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" },
     selectedTest ? "Test walkthrough" : "Behavior note");
-  const header = element("div", { class: "section-heading walkthrough-header" }, title,
-    button("Close", () => walkthroughDialog.close(), "subtle", { "aria-label": "Close walkthrough" }));
+  const close = button("Close", () => walkthroughDialog.close(), "subtle", { "aria-label": "Close walkthrough" });
   if (!selectedTest) {
-    return element("section", { class: "walkthrough" }, header, element("h3", {}, selectedBehavior.title),
-      element("p", {}, selectedBehavior.detail), addNote(selectedBehavior.title, selectedBehavior.sources[0]));
+    return element("section", { class: "walkthrough" },
+      element("div", { class: "section-heading walkthrough-header" }, title, close),
+      element("h3", {}, selectedBehavior.title), element("p", {}, selectedBehavior.detail),
+      addNote(selectedBehavior.title, selectedBehavior.sources[0]));
   }
 
   const test = selectedTest;
   const evidence = pr.evidence[test.id];
   const browserTest = test.source.path.startsWith("frontend/e2e/");
   const step = test.steps[stepIndex];
-  const nodes = pr.architecture.nodes.filter((node) => test.path.includes(node.id));
-  const path = element("ol", { class: "test-path", "aria-label": "Affected components" },
-    test.path.map((id) => {
-      const node = nodes.find((item) => item.id === id);
-      return element("li", { class: node.files.length ? "on-path changed" : "on-path" }, node.label);
-    }));
-  const details = element("div", { class: "checkpoint" });
-  if (step) {
-    details.append(element("div", { class: "checkpoint-heading" },
-      element("h4", {}, step.title), tag(step.basis, "neutral")),
-      element("p", {}, step.detail),
-      sourceLink(step.source, "Step reference"),
-      element("div", { class: "checkpoint-grid" },
-        implementationCode(pr, test, stepIndex), fixtureValues(step)));
-    if (step.attachment) {
-      const image = evidence?.images[step.attachment];
-      details.append(image ? element("figure", { class: "capture" }, element("img", {
-        src: image, alt: step.title + " from the " + evidence.browser + " browser test",
-      }), element("figcaption", {}, evidence.browser + " · " + evidence.result + " · " + evidence.head.slice(0, 8)))
-        : element("p", { class: "subhead" }, "Screenshot pending. Run this browser test to capture the step."));
-    }
-  } else {
-    details.append(status("This test has no walkthrough steps."));
-  }
+  const header = element("header", { class: "walkthrough-top" },
+    element("div", { class: "walkthrough-shell" },
+      element("div", { class: "walkthrough-title-row" },
+        element("div", {}, title, element("p", { class: "walkthrough-test-title" }, test.title)), close),
+      element("div", { class: "walkthrough-controls" },
+        stepNavigation(test),
+        element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
+          browserTest ? button(capturePending ? "Test running…" : "Run browser test",
+            () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null))));
 
-  return element("section", { class: "walkthrough" }, header, element("h3", {}, test.title),
-    element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
-      browserTest ? button(capturePending ? "Test running…" : "Run browser test",
-        () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null),
-    captureMessage ? status(captureMessage) : null,
-    path,
-    test.steps.length > 1 ? element("div", { class: "step-nav", "aria-label": "Step controls" },
-      button("Previous", () => selectStep(stepIndex - 1), "subtle", { disabled: stepIndex === 0 ? "" : null }),
-      element("span", {}, "Step " + (stepIndex + 1) + " of " + test.steps.length),
-      button("Next", () => selectStep(stepIndex + 1), "subtle", { disabled: stepIndex === test.steps.length - 1 ? "" : null })) : null,
-    element("div", { class: "step-list", "aria-label": "Walkthrough steps" },
-      test.steps.map((item, index) => button(item.title, () => selectStep(index),
-        "step", { "aria-current": index === stepIndex ? "step" : null }))),
-    details,
-    addNote(selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : ""), step?.source ?? test.source));
+  const path = test.path.length ? element("details", { class: "walkthrough-disclosure" },
+    element("summary", {}, "Affected components"),
+    element("ol", { class: "test-path", "aria-label": "Affected components" },
+      test.path.map((id) => {
+        const node = pr.architecture.nodes.find((item) => item.id === id);
+        return element("li", { class: node.files.length ? "on-path changed" : "on-path" }, node.label);
+      }))) : null;
+  const checkpoint = step
+    ? element("section", { class: "checkpoint" },
+      element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
+        sourceLink(step.source, "Step reference")),
+      element("p", {}, step.detail),
+      element("div", { class: "checkpoint-grid" }, fixtureValues(step), implementationCode(pr, test, stepIndex)),
+      screenshotEvidence(step, evidence))
+    : status("This test has no walkthrough steps.");
+  const context = selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : "");
+  const note = element("details", { class: "walkthrough-disclosure" },
+    element("summary", {}, "Add review note"), addNote(context, step?.source ?? test.source));
+  return element("section", { class: "walkthrough walkthrough-test" }, header,
+    element("div", { class: "walkthrough-content walkthrough-shell" },
+      captureMessage ? status(captureMessage) : null, checkpoint, path, note));
 }
 
 async function capture(pr, test) {
