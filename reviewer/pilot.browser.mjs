@@ -21,20 +21,50 @@ try {
     submitted = route.request().postDataJSON();
     await route.fulfill({ json: { id: 123, url: "https://github.com/lycho33/Terminology/pull/14#simulated-review" } });
   });
-  await page.goto(url);
-  await page.getByRole("heading", { name: "Open pull requests" }).waitFor();
-  const list = await page.locator(".pull-list li").allTextContents();
-  assert.ok(list.some((text) => text.includes("#14") && text.includes("Draft")));
-  assert.ok(list.every((text) => text.includes("Draft") || text.includes("Open")));
-  await page.screenshot({ path: root + "/01-open-pull-requests.png", fullPage: true });
+  const releaseList = Promise.withResolvers();
+  await page.route("**/api/prs", async (route) => {
+    await releaseList.promise;
+    await route.continue();
+  });
 
-  await page.getByRole("button", { name: /#14.*SVG/ }).click();
-  await page.getByRole("heading", { name: "Behaviors", exact: true }).waitFor();
+  await page.goto(url);
+  const map = page.getByRole("region", { name: "Architecture map" });
+  await map.waitFor();
+  for (const name of ["Frontend", "API", "Knowledge graph"]) {
+    assert.ok(await map.getByRole("heading", { name, exact: true }).isVisible());
+  }
+  assert.equal(await page.locator("main > section").first().getAttribute("class"), "architecture");
+  assert.equal(await map.locator(".region-changed").count(), 0);
+  releaseList.resolve();
+
+  const picker = page.getByRole("combobox", { name: "Pull request" });
+  await picker.locator('option[value="14"]').waitFor({ state: "attached" });
+  const options = await picker.locator("option[value]:not([value=''])").allTextContents();
+  assert.ok(options.some((text) => text.includes("#14") && text.includes("Draft")));
+  assert.ok(options.every((text) => / · (Draft|Open) · /.test(text)));
+  await page.screenshot({ path: root + "/01-architecture-map.png" });
+
+  await picker.selectOption("14");
+  await page.getByRole("heading", { name: "Behaviors and tests", exact: true }).waitFor();
   assert.ok(await page.getByText("No related test found", { exact: true }).count() >= 1);
   assert.ok(await page.getByText("PR description", { exact: true }).isVisible());
-  assert.ok(await page.locator(".component.changed").count() >= 5);
-  await page.getByText("Preview, cancel, or save an edit", { exact: true }).click();
-  await page.getByRole("button", { name: /SC-6 SVG: edit, cancel/ }).click();
+  for (const region of ["frontend", "api"]) {
+    assert.ok(await map.locator('[data-region="' + region + '"].region-changed').count());
+  }
+  assert.ok(await map.locator('[data-region="graph"]').getByText("No direct changes").isVisible());
+  assert.ok(await map.getByText("Other changed areas", { exact: false }).isVisible());
+  await page.screenshot({ path: root + "/01-architecture-pr14.png" });
+
+  const editTest = page.getByRole("button", { name: /SC-6 SVG: edit, cancel/ });
+  assert.ok(await editTest.isVisible());
+  await editTest.click();
+  const walkthrough = page.getByRole("dialog", { name: "Test walkthrough" });
+  await walkthrough.waitFor();
+  await page.keyboard.press("Escape");
+  await walkthrough.waitFor({ state: "hidden" });
+  assert.equal(await editTest.evaluate((item) => item === document.activeElement), true);
+  await editTest.click();
+  await walkthrough.waitFor();
   const fresh = page.waitForResponse((response) => response.url().endsWith("/api/prs/14/capture"), { timeout: 180_000 });
   await page.getByRole("button", { name: "Run browser test", exact: true }).click();
   const response = await fresh;
@@ -44,7 +74,6 @@ try {
   assert.deepEqual(Object.keys(capture.images), ["review-preview", "review-cancel", "edited-diagram"]);
   await page.getByText("Chromium passed", { exact: true }).waitFor();
 
-
   for (const [button, label] of [["Preview the draft", "Browser"], ["Cancel", "Client"], ["Refresh the saved view", "Browser"]]) {
     await page.getByRole("button", { name: button, exact: true }).click();
     assert.equal(await page.locator(".checkpoint code").textContent(), label);
@@ -52,15 +81,16 @@ try {
     await image.waitFor();
     await page.waitForFunction(() => document.querySelector(".capture img")?.naturalWidth > 0);
   }
-  await page.locator(".inspect-col").screenshot({ path: root + "/02-test-walkthrough.png" });
+  await walkthrough.screenshot({ path: root + "/02-test-walkthrough.png" });
 
   await page.getByRole("textbox", { name: "Review note" }).fill("Selected verification note");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await page.getByText("Invalidate other cached term details after a save", { exact: true }).click();
+  await page.getByRole("button", { name: "Close walkthrough" }).click();
   await page.locator(".behavior").filter({ hasText: "Invalidate other cached term details after a save" })
     .getByRole("button", { name: "Add behavior note" }).click();
   await page.getByRole("textbox", { name: "Review note" }).fill("Unselected verification note");
   await page.getByRole("button", { name: "Save draft" }).click();
+  await page.getByRole("button", { name: "Close walkthrough" }).click();
   await page.getByRole("checkbox", { name: /Selected verification note/ }).check();
   await page.getByRole("button", { name: "Preview selected notes" }).click();
   await page.getByRole("dialog").waitFor();
@@ -73,6 +103,9 @@ try {
   await writeFile(root + "/simulated-submission.json", JSON.stringify(submitted, null, 2));
   await page.setViewportSize({ width: 390, height: 850 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await editTest.click();
+  await walkthrough.waitFor();
+  assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));
   assert.deepEqual(errors, []);
   console.log("Verified the PR #14 browser walkthrough. Note submission was simulated.");
   console.log("Evidence: " + root);

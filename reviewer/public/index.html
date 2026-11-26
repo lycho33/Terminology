@@ -11,11 +11,11 @@
   <header class="app-bar">
     <div class="app-mark" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="app-name"><span>Terminology</span><strong>PR reviewer</strong></div>
-    <button id="show-pulls" class="subtle" type="button" hidden>Open PRs</button>
   </header>
-  <main id="main" aria-busy="true">
-    <p class="notice" role="status">Loading open pull requests…</p>
-  </main>
+  <main id="main"></main>
+  <dialog id="walkthrough-dialog" aria-labelledby="walkthrough-heading">
+    <div id="walkthrough-body"></div>
+  </dialog>
   <dialog id="preview" aria-labelledby="preview-heading">
     <div id="preview-body"></div>
   </dialog>

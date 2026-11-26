@@ -1,8 +1,16 @@
+import { architecture, mapRegions } from "/components.mjs";
+
 const main = document.getElementById("main");
-const back = document.getElementById("show-pulls");
+const walkthroughDialog = document.getElementById("walkthrough-dialog");
+const walkthroughBody = document.getElementById("walkthrough-body");
 const dialog = document.getElementById("preview");
 const previewBody = document.getElementById("preview-body");
 let pulls = [];
+let listLoading = true;
+let listError = "";
+let pendingPull;
+let reviewError = "";
+let failedPull;
 let current;
 let loadGeneration = 0;
 let selectedBehavior;
@@ -65,36 +73,38 @@ async function api(path, payload) {
 }
 
 async function showPulls() {
-  current = null;
-  loadGeneration++;
-  dialog.close();
-  back.hidden = true;
-  main.replaceChildren(status("Loading open pull requests…"));
-  main.setAttribute("aria-busy", "true");
+  listLoading = true;
+  listError = "";
+  renderReview();
   try {
     pulls = await api("/api/prs");
-    renderPulls();
   } catch (error) {
-    main.replaceChildren(status(error.message, true), button("Try again", showPulls, "primary"));
+    listError = error.message;
   } finally {
-    main.setAttribute("aria-busy", "false");
+    listLoading = false;
+    renderReview();
   }
 }
 
-function renderPulls() {
-  const header = element("div", { class: "page-heading" },
-    element("div", {}, element("h1", {}, "Open pull requests")),
-    button("Refresh", showPulls, "subtle"));
-  const rows = element("ul", { class: "pull-list" });
+function pullPicker() {
+  const select = element("select", {
+    id: "pull-picker", disabled: listLoading || !pulls.length ? "" : null,
+  }, element("option", { value: "" }, listLoading ? "Loading open pull requests…" : "Choose an open pull request"));
   for (const pr of pulls) {
-    rows.append(element("li", {},
-      button(element("span", { class: "pull-title" },
-        element("span", { class: "pr-number" }, "#" + pr.number), element("strong", {}, pr.title),
-        tag(pr.draft ? "Draft" : "Open", pr.draft ? "neutral" : "green"),
-        element("span", { "aria-hidden": "true", class: "arrow" }, "↗")),
-      () => openPull(pr.number), "pull-button")));
+    const label = "#" + pr.number + " · " + (pr.draft ? "Draft" : "Open") + " · " + pr.title;
+    select.append(element("option", { value: pr.number }, label));
   }
-  main.replaceChildren(header, pulls.length ? rows : status("There are no open pull requests."));
+  select.value = pendingPull ?? current?.number ?? failedPull ?? "";
+  select.addEventListener("change", () => openPull(Number(select.value)));
+  return element("section", { class: "pull-control", "aria-label": "Pull request selection" },
+    element("div", { class: "pull-field" },
+      element("label", { for: "pull-picker" }, "Pull request"), select),
+    pendingPull ? status("Reading code and tests for PR #" + pendingPull + "…") : null,
+    !listLoading && !pulls.length && !listError ? status("There are no open pull requests.") : null,
+    listError ? status(listError, true) : null,
+    listError ? button("Retry open list", showPulls, "subtle") : null,
+    reviewError ? status(reviewError, true) : null,
+    reviewError ? button("Retry review", () => openPull(failedPull), "subtle") : null);
 }
 
 function draftKey(pr) {
@@ -122,12 +132,14 @@ function storeNotes() {
 
 async function openPull(number) {
   const generation = ++loadGeneration;
-  const pull = pulls.find((item) => item.number === number);
   current = null;
-  back.hidden = false;
-  main.setAttribute("aria-busy", "true");
-  main.replaceChildren(element("h1", {}, pull?.title ?? "Pull request #" + number),
-    status("Reading the PR, related code, and tests…"));
+  pendingPull = number || null;
+  failedPull = null;
+  reviewError = "";
+  walkthroughDialog.close();
+  dialog.close();
+  renderReview();
+  if (!number) return;
   try {
     const pr = await api("/api/prs/" + number);
     if (loadGeneration !== generation) return;
@@ -140,12 +152,16 @@ async function openPull(number) {
     captureMessage = "";
     capturePending = false;
     notes = savedNotes(pr);
-    renderReview();
   } catch (error) {
     if (loadGeneration !== generation) return;
-    main.append(status(error.message, true), button("Try again", () => openPull(number), "subtle"));
+    failedPull = number;
+    reviewError = error.message;
   } finally {
-    if (loadGeneration === generation) main.setAttribute("aria-busy", "false");
+    if (loadGeneration === generation) {
+      pendingPull = null;
+      renderReview();
+      document.getElementById("pull-picker").focus({ preventScroll: true });
+    }
   }
 }
 
@@ -157,52 +173,67 @@ function intentView(pr) {
 }
 
 function architectureView(pr) {
-  const diagram = element("div", { class: "flow", "aria-label": "Term editor to Neo4j persistence" });
-  const others = element("div", { class: "component-other" });
-  const mainPath = ["editor", "data", "api", "database"];
-  for (const [index, id] of mainPath.entries()) {
-    if (index > 0) diagram.append(element("span", { class: "flow-arrow", title: pr.architecture.connections.find((edge) => edge.to === id && mainPath[index - 1] === edge.from)?.label, "aria-hidden": "true" }, "→"));
-    diagram.append(component(pr.architecture.nodes.find((node) => node.id === id)));
+  const map = pr?.architecture ?? architecture([]);
+  const diagram = element("div", { class: "map-canvas" });
+  for (const [index, region] of mapRegions.entries()) {
+    if (index > 0) {
+      const upstream = mapRegions[index - 1].members.at(-1);
+      const edge = map.connections.find(({ from, to }) => from === upstream && region.members.includes(to));
+      diagram.append(element("div", { class: "map-connection" }, element("span", {}, edge.label),
+        element("i", { "aria-hidden": "true" })));
+    }
+    const members = region.members.map((id) => map.nodes.find((node) => node.id === id));
+    const changed = members.some((node) => node.files.length);
+    diagram.append(element("article", {
+      class: "map-region map-" + region.id + (changed ? " region-changed" : ""),
+      "data-region": region.id,
+    }, element("div", { class: "map-region-title" }, element("h2", {}, region.label),
+      element("p", {}, region.platform)),
+    element("div", { class: "map-modules" }, members.map(mapModule)),
+    pr && !changed ? element("p", { class: "map-unchanged" }, "No direct changes") : null));
   }
-  for (const node of pr.architecture.nodes.filter((node) => !mainPath.includes(node.id))) {
-    others.append(component(node));
-  }
-  return element("section", { class: "architecture", "aria-label": "Architecture" },
-    element("div", { class: "section-heading" }, element("h2", {}, "Architecture"),
-      tag("Changed in this PR", "green")),
-    diagram, others);
+  const members = new Set(mapRegions.flatMap((region) => region.members));
+  const otherChanges = map.nodes.filter((node) => !members.has(node.id) && node.files.length);
+  return element("section", { class: "architecture", "aria-labelledby": "architecture-title" },
+    element("div", { class: "map-heading" },
+      element("h1", { id: "architecture-title" }, "Architecture map"),
+      pr ? tag("Changed in PR #" + pr.number, "map-legend") : null),
+    diagram,
+    otherChanges.length ? element("details", { class: "map-support" },
+      element("summary", {}, "Other changed areas", element("span", {}, otherChanges.map((node) => node.label).join(" · "))),
+      element("div", { class: "map-support-items" }, otherChanges.map(mapModule))) : null);
 }
 
-function component(node) {
-  const details = element("details", { class: "component" + (node.files.length ? " changed" : "") });
-  const hint = node.files.length ? node.files.length + " changed" : "No changed files";
-  details.append(element("summary", {}, element("strong", {}, node.label), element("span", {}, hint)),
-    element("ul", {}, node.files.length
-      ? node.files.map(({ path, revision }) => element("li", {}, sourceLink({ path, line: 1, revision }, path)))
-      : element("li", {}, "No files in the PR diff.")));
-  return details;
+function mapModule(node) {
+  if (!node.files.length) return element("div", { class: "map-module" }, node.label);
+  const count = node.files.length;
+  return element("details", { class: "map-module changed" },
+    element("summary", {}, element("span", {}, node.label), tag(count + (count === 1 ? " file" : " files"), "changed-label")),
+    element("ul", {}, node.files.map(({ path, revision }) =>
+      element("li", {}, sourceLink({ path, line: 1, revision }, path)))));
 }
 
 function behaviorList(pr) {
   const withGaps = pr.behaviors.filter((item) => !item.tests.length || item.gaps.length);
-  const header = element("div", { class: "section-heading" }, element("h2", {}, "Behaviors"),
+  const header = element("div", { class: "section-heading" }, element("h2", {}, "Behaviors and tests"),
     withGaps.length ? tag(withGaps.length + " with test gaps", "amber") : null);
   const list = element("ul", { class: "behavior-list", "aria-label": "Changed and new behaviors" });
   for (const item of pr.behaviors) {
-    const active = selectedBehavior === item;
-    const chips = item.tests.length ? tag(item.tests.length + (item.tests.length === 1 ? " test" : " tests"))
-      : tag("No related test found", "amber");
-    const details = element("details", { class: "behavior" + (active ? " active" : ""), open: active ? "" : null },
-      element("summary", {}, element("strong", {}, item.title), chips),
-      element("div", { class: "behavior-body" },
-        element("p", {}, item.detail),
-        element("div", { class: "source-links" }, item.sources.map((source) => sourceLink(source))),
-        item.gaps.length ? element("div", { class: "gap" }, element("strong", {}, "Test gap"),
-          element("ul", {}, item.gaps.map((gap) => element("li", {}, gap)))) : null,
-        element("div", { class: "test-list" }, item.tests.map((test) =>
-          button(test.title, () => select(item, test), "test-choice", { "aria-pressed": selectedTest === test }))),
-        button("Add behavior note", () => select(item), "text-button")));
-    list.append(element("li", {}, details));
+    const detail = element("div", { class: "behavior-detail" }, element("h3", {}, item.title),
+      element("p", {}, item.detail),
+      item.gaps.length ? element("div", { class: "gap" }, element("strong", {}, "Test gap"),
+        element("ul", {}, item.gaps.map((gap) => element("li", {}, gap)))) : null,
+      element("div", { class: "behavior-actions" },
+        item.sources.length ? element("details", { class: "behavior-sources" },
+          element("summary", {}, "Source links"),
+          element("div", { class: "source-links" }, item.sources.map((source) => sourceLink(source)))) : null,
+        button("Add behavior note", () => openWalkthrough(item), "text-button")));
+    const tests = item.tests.length
+      ? element("ul", { class: "test-list", "aria-label": "Related tests for " + item.title },
+        item.tests.map((test) => element("li", {},
+          button(test.title, () => openWalkthrough(item, test), "test-choice", { "aria-haspopup": "dialog" }))))
+      : element("div", { class: "test-empty" }, tag("No related test found", "amber"));
+    list.append(element("li", { class: "behavior" }, detail, tests));
   }
   return element("section", { class: "behaviors" }, header,
     pr.method ? element("p", { class: "subhead" }, pr.method) : null,
@@ -212,27 +243,31 @@ function behaviorList(pr) {
     pr.reportError ? button("Retry behavior report", () => openPull(pr.number), "subtle") : null);
 }
 
-function select(behavior, test = null) {
+function openWalkthrough(behavior, test = null) {
   selectedBehavior = behavior;
   selectedTest = test;
   stepIndex = 0;
   captureMessage = "";
-  renderReview();
-  requestAnimationFrame(() => document.getElementById("walkthrough-heading")?.focus());
+  renderWalkthrough();
+  walkthroughDialog.showModal();
+  document.getElementById("walkthrough-heading").focus({ preventScroll: true });
+}
+
+function renderWalkthrough() {
+  walkthroughBody.replaceChildren(walkthrough(current));
 }
 
 function renderReview() {
   const pr = current;
-  if (!pr) return;
-  const hero = element("section", { class: "review-hero" },
+  const summary = pr ? element("section", { class: "review-hero" },
     element("div", { class: "review-meta" }, tag("#" + pr.number, "neutral"),
       pr.draft ? tag("Draft") : null,
       link("Open on GitHub ↗", pr.url, "github-link"),
       element("code", { class: "commit" }, pr.head.slice(0, 8))),
-    element("h1", {}, pr.title), intentView(pr));
-  const grid = element("div", { class: "review-grid" },
-    behaviorList(pr), element("div", { class: "inspect-col" }, walkthrough(pr), notePanel(pr)));
-  main.replaceChildren(hero, architectureView(pr), grid);
+    element("h2", { class: "pr-heading" }, pr.title), intentView(pr)) : null;
+  const content = [architectureView(pr), pullPicker()];
+  if (pr) content.push(summary, behaviorList(pr), notePanel(pr));
+  main.replaceChildren(...content);
 }
 
 function statusBadge(evidence) {
@@ -241,13 +276,12 @@ function statusBadge(evidence) {
 }
 
 function walkthrough(pr) {
-  const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" }, "Test walkthrough");
-  if (!selectedBehavior) {
-    return element("section", { class: "walkthrough" }, title,
-      element("p", { class: "subhead" }, "Open a behavior and select a test."));
-  }
+  const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" },
+    selectedTest ? "Test walkthrough" : "Behavior note");
+  const header = element("div", { class: "section-heading walkthrough-header" }, title,
+    button("Close", () => walkthroughDialog.close(), "subtle", { "aria-label": "Close walkthrough" }));
   if (!selectedTest) {
-    return element("section", { class: "walkthrough" }, title, element("h3", {}, selectedBehavior.title),
+    return element("section", { class: "walkthrough" }, header, element("h3", {}, selectedBehavior.title),
       element("p", {}, selectedBehavior.detail), addNote(selectedBehavior.title, selectedBehavior.sources[0]));
   }
 
@@ -278,7 +312,7 @@ function walkthrough(pr) {
     details.append(status("This test has no walkthrough steps."));
   }
 
-  return element("section", { class: "walkthrough" }, title, element("h3", {}, test.title),
+  return element("section", { class: "walkthrough" }, header, element("h3", {}, test.title),
     element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
       browserTest ? button(capturePending ? "Test running…" : "Run browser test",
         () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null),
@@ -287,8 +321,8 @@ function walkthrough(pr) {
     element("div", { class: "step-list", "aria-label": "Walkthrough steps" },
       test.steps.map((item, index) => button(item.title, () => {
         stepIndex = index;
-        renderReview();
-        document.querySelector(".step-list [aria-current=step]")?.focus();
+        renderWalkthrough();
+        walkthroughBody.querySelector(".step-list [aria-current=step]").focus();
       }, "step", { "aria-current": index === stepIndex ? "step" : null }))),
     details,
     addNote(selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : ""), step?.source ?? test.source));
@@ -297,7 +331,7 @@ function walkthrough(pr) {
 async function capture(pr, test) {
   capturePending = true;
   captureMessage = "";
-  renderReview();
+  renderWalkthrough();
   try {
     pr.evidence[test.id] = await api("/api/prs/" + pr.number + "/capture", {
       head: pr.head, base: pr.base, test: test.id,
@@ -306,34 +340,42 @@ async function capture(pr, test) {
       captureMessage = "The test ran. It did not attach any screenshots.";
     }
   } catch (error) {
-    if (current === pr) captureMessage = error.message;
+    if (current === pr && selectedTest === test) captureMessage = error.message;
   } finally {
     if (current === pr) {
       capturePending = false;
-      renderReview();
+      if (walkthroughDialog.open) renderWalkthrough();
     }
   }
 }
 
 function addNote(context, source) {
   const field = element("textarea", { rows: "3", maxlength: "2000", required: "", placeholder: "Write a question or comment" });
+  const feedback = element("span", { role: "status" });
   const form = element("form", { class: "note-form" },
     element("label", {}, "Review note", field),
-    element("button", { type: "submit", class: "subtle" }, "Save draft"));
+    element("div", { class: "note-form-actions" },
+      element("button", { type: "submit", class: "subtle" }, "Save draft"), feedback));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = field.value.trim();
     if (!text) return;
     notes.push({ id: crypto.randomUUID(), text, context, source, selected: false });
     storeNotes();
+    field.value = "";
+    feedback.textContent = "Draft saved.";
     noteMessage = "Draft saved.";
-    renderReview();
+    renderNotes();
   });
   return form;
 }
 
+function renderNotes() {
+  document.getElementById("review-notes").replaceWith(notePanel(current));
+}
+
 function notePanel(pr) {
-  const section = element("section", { class: "notes" },
+  const section = element("section", { id: "review-notes", class: "notes" },
     element("div", { class: "section-heading" }, element("h2", {}, "Review notes"), tag(String(notes.length))));
   if (!notes.length) section.append(element("p", { class: "subhead" }, "Notes you save to this review appear here."));
   const preview = button("Preview selected notes", () => showPreview(pr), "primary",
@@ -350,7 +392,7 @@ function notePanel(pr) {
     const remove = button("Delete draft", () => {
       notes.splice(notes.indexOf(note), 1);
       storeNotes();
-      renderReview();
+      renderNotes();
     }, "text-button");
     section.append(element("div", { class: "note" }, label, remove));
   }
@@ -384,7 +426,7 @@ function showPreview(pr) {
       dialog.close();
       noteMessage = "Selected notes sent.";
       sentLink = result.url;
-      renderReview();
+      renderNotes();
     } catch (error) {
       feedback.textContent = error.message;
       send.disabled = false;
@@ -397,8 +439,10 @@ function showPreview(pr) {
   dialog.showModal();
 }
 
-back.addEventListener("click", showPulls);
+void showPulls();
 api("/api/session").then(({ key }) => {
   sessionKey = key;
-  return showPulls();
-}).catch((error) => main.replaceChildren(status(error.message, true)));
+}).catch((error) => {
+  listError = error.message;
+  renderReview();
+});

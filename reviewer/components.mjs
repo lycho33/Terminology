@@ -8,6 +8,12 @@ export const components = [
   { id: "docs", label: "Documentation", matches: /^(?:docs\/|.*\.md$)/ },
 ];
 
+export const mapRegions = [
+  { id: "frontend", label: "Frontend", platform: "React · Vite", members: ["editor", "data"] },
+  { id: "api", label: "API", platform: "FastAPI · Python", members: ["api"] },
+  { id: "graph", label: "Knowledge graph", platform: "Neo4j", members: ["database"] },
+];
+
 export const connections = [
   { from: "editor", to: "data", label: "Edit term / read term" },
   { from: "data", to: "api", label: "HTTP requests" },

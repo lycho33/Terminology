@@ -11,8 +11,10 @@ node reviewer/server.mjs
 ~~~
 
 Ask Codex to open the loopback URL printed by the command in a panel beside the
-chat. Keep the process running while you use the panel. Select a draft or open
-PR, then select a test from a behavior. Use **Preview selected notes** and
+chat. Keep the process running while you use the panel. The panel opens
+with an architecture map. Select a draft or open PR below it to highlight
+the affected areas. Select a test in the behavior list to open its walkthrough
+dialog. Use **Preview selected notes** and
 **Send to GitHub** to send the notes that you selected.
 
 The reviewer reads the linked closing issue when GitHub returns one. It uses

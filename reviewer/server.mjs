@@ -12,6 +12,7 @@ import { isPilot, pilotCaptureTest } from "./pilot.mjs";
 const publicFiles = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/app.mjs", ["app.mjs", "text/javascript; charset=utf-8"]],
+  ["/components.mjs", ["../components.mjs", "text/javascript; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
 ]);
 const publicRoot = new URL("./public/", import.meta.url);
