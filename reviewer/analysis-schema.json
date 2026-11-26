@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["behaviors"],
+  "properties": {
+    "behaviors": { "type": "array", "items": { "$ref": "#/$defs/behavior" } }
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "line"],
+      "properties": {"path": {"type": "string"}, "line": {"type": "integer"}}
+    },
+    "step": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "value", "detail", "basis", "source", "attachment"],
+      "properties": {
+        "title": {"type": "string"}, "value": {"type": "string"}, "detail": {"type": "string"},
+        "basis": {"type": "string", "enum": ["Test input", "Checked by test", "From source"]},
+        "source": {"$ref": "#/$defs/source"},
+        "attachment": {"type": ["string", "null"]}
+      }
+    },
+    "test": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "source", "path", "steps"],
+      "properties": {
+        "title": {"type": "string"}, "source": {"$ref": "#/$defs/source"},
+        "path": {"type": "array", "items": {"type": "string"}},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
+      }
+    },
+    "behavior": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "detail", "sources", "tests", "gaps"],
+      "properties": {
+        "title": {"type": "string"}, "detail": {"type": "string"},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+        "tests": {"type": "array", "items": {"$ref": "#/$defs/test"}},
+        "gaps": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Terminology PR reviewer</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.mjs" type="module"></script>
+</head>
+<body>
+  <header class="app-bar">
+    <div class="app-mark" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="app-name"><span>Terminology</span><strong>PR reviewer</strong></div>
+    <button id="show-pulls" class="subtle" type="button" hidden>Open PRs</button>
+  </header>
+  <main id="main" aria-busy="true">
+    <p class="notice" role="status">Loading open pull requests…</p>
+  </main>
+  <dialog id="preview" aria-labelledby="preview-heading">
+    <div id="preview-body"></div>
+  </dialog>
+</body>
+</html>
