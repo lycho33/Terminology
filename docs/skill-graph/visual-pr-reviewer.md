@@ -7,15 +7,15 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the full-panel walkthrough with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the architecture board with the user.
 
 ## Decisions
 
 - GitHub supplies the PR list, linked issue, and diff. Use the description when there is no linked issue. Limit the list to active PRs, including drafts.
 - Show an architecture map before PR selection. Use architecture-vision.png as the visual reference. Base the map labels and connections on current source.
 - Keep the map in place after PR selection. Highlight the affected components. Show the behaviors and associated tests below the map. Call out missing tests.
-- Open a full-panel walkthrough when the user selects a test. Keep step navigation in the header. Closing the walkthrough returns the user to the test list.
-- Show the implementation code beside the test inputs and the result of each walkthrough step. Capture visible steps with the browser test and mark the revision tested.
+- Put expandable behaviors and tests in the board sidebar. Selecting a test highlights its related components on the architecture map and opens its walkthrough on the same board.
+- Move the fixture label and current-step highlight on the map. Show test inputs, results, implementation code, and UI screenshots on the board.
 - Send the notes that the reviewer selects. Use an explicit send action.
 - The approved plan describes the expected workflow. The user did not record a separate system-change prediction.
 
@@ -27,7 +27,7 @@ flowchart LR
     github["GitHub"] -->|"open PRs and drafts"| picker["PR picker"]
     map --> picker
     picker -->|"selected PR and revision"| view["Map highlights and behavior list"]
-    view -->|"selected test"| steps["Implementation code and test values"]
+    view -->|"selected test"| steps["Map highlights, test values, and UI evidence"]
     runner["Isolated browser runner"] -->|"named screenshots and result"| steps
     view -->|"behavior note"| drafts["Local drafts"]
     steps -->|"step note"| drafts
@@ -80,13 +80,23 @@ now fills the panel. The header has Previous, Next, and a step selector.
 The test values sit above the full-width code. Screenshots, components,
 and notes open on request. The browser checks layout at 853 px and 390 px.
 
+## Board revision
+
+The user asked for a board with behavior and test navigation beside the
+map. Behaviors expand directly in the sidebar. Test selection keeps the
+map visible and highlights the related components. For SC-6, the active
+fixture label moves from the editor to the HTTP action, API, and graph,
+then returns to the saved view. The Preview, Cancel, and Save steps show
+browser screenshots. The step values remain fixture examples derived from
+the test and source. The map motion does not record runtime calls.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
 | --- | --- | --- |
 | AC-1 | The Codex panel starts with an architecture map. Select an open PR or draft below it and see the affected areas. | Chromium confirmed that the map loaded while the live PR list was held. PR #14 highlighted Frontend and API. Unit tests check paging and filtering. |
-| AC-2 | Show intent, changed components, behaviors, associated tests, and test gaps. | Chromium opened #14 and showed its description, changed components, test gaps, and test buttons in the behavior list. Unit tests check linked-issue preference. A separate live request drafted a report for #13. |
-| AC-3 | Open a test. Show actual code with fixture inputs, results, and browser screenshots where available. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. Chromium also checked the code ranges, fixture values in the dialog, and transitions before and after the PATCH and database steps. |
+| AC-2 | Show intent, changed components, behaviors, associated tests, and test gaps. | Chromium opened #14 and showed its description, changed components, test gaps, and the expandable behavior and test sidebar. Unit tests check linked-issue preference. A separate live request drafted a report for #13. |
+| AC-3 | Select a test in the sidebar. Show fixture values and the related path on the board, with code and UI evidence. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. Chromium also checked the code ranges, fixture values and component highlights on the board, and transitions before and after the PATCH and database steps. |
 | AC-4 | Send the selected notes to the reviewed PR revision. | The browser check intercepted the send and received one selected note. The other note remained local. Server tests verify the request, stale revision response, and duplicate submission ID. Live posting remains unverified. |
 
 ## Ordered user review
@@ -94,7 +104,7 @@ and notes open on request. The browser checks layout at 853 px and 390 px.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select SC-6. Step through React, PATCH, and Neo4j from the dialog. | See the implementation code, the tested values, and the label sequence Browser, Client, Browser. | 02-test-walkthrough.png and 02-test-walkthrough-narrow.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
+| SC-2 | AC-2, AC-3 | Expand the behavior and select SC-6. Step through React, PATCH, and Neo4j on the board. | See the component highlight, tested values, and UI sequence Browser, Client, Browser. | 02-test-walkthrough.png and 02-test-walkthrough-narrow.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -105,7 +115,7 @@ and notes open on request. The browser checks layout at 853 px and 390 px.
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
-- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-layout-verification
+- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-board-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

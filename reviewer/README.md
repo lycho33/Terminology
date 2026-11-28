@@ -13,11 +13,11 @@ node reviewer/server.mjs
 Ask Codex to open the loopback URL printed by the command in a panel beside the
 chat. Keep the process running while you use the panel. The panel opens
 with an architecture map. Select a draft or open PR below it to highlight
-the affected areas. Select a test in the behavior list to open its walkthrough
-in the full panel. Use Previous, Next, or the step selector to move through
-the code. Each step shows implementation lines from the reviewed commit
-and values from the test fixture. The walkthrough labels source-derived
-steps and shows browser captures at the tested UI checkpoints. Use
+the affected areas. Expand a behavior in the sidebar and select a test.
+The board highlights the related components and marks the current step.
+Use Previous, Next, or the step selector to follow the test fixture. The
+board shows the values and any browser screenshots for that step. Expand
+Implementation code to see the source from the reviewed commit. Use
 **Preview selected notes** and
 **Send to GitHub** to send the notes that you selected.
 

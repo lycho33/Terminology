@@ -33,7 +33,7 @@ try {
   for (const name of ["Frontend", "API", "Knowledge graph"]) {
     assert.ok(await map.getByRole("heading", { name, exact: true }).isVisible());
   }
-  assert.equal(await page.locator("main > section").first().getAttribute("class"), "architecture");
+  assert.equal(await page.locator(".board > *").first().getAttribute("id"), "board-map");
   assert.equal(await map.locator(".region-changed").count(), 0);
   releaseList.resolve();
 
@@ -45,7 +45,9 @@ try {
   await page.screenshot({ path: root + "/01-architecture-map.png" });
 
   await picker.selectOption("14");
-  await page.getByRole("heading", { name: "Behaviors and tests", exact: true }).waitFor();
+  const sidebar = page.getByRole("complementary", { name: "Review sidebar" });
+  await sidebar.getByRole("heading", { name: "Behaviors", exact: true }).waitFor();
+  await sidebar.getByText("PR #14 · Draft", { exact: true }).click();
   assert.ok(await page.getByText("No related test found", { exact: true }).count() >= 1);
   assert.ok(await page.getByText("PR description", { exact: true }).isVisible());
   for (const region of ["frontend", "api"]) {
@@ -65,13 +67,17 @@ try {
   assert.ok((await editorChanges.getByRole("link").allTextContents()).every((label) => !label.includes("/")));
   await map.screenshot({ path: root + "/01-changed-file-names.png" });
 
-  const editTest = page.getByRole("button", { name: /SC-6 SVG: edit, cancel/ });
-  assert.ok(await editTest.isVisible());
+  const editTest = sidebar.getByRole("button", { name: /SC-6 SVG: edit, cancel/ });
+  assert.equal(await editTest.isVisible(), false);
+  await sidebar.getByText("Preview, cancel, or save an edit", { exact: true }).click();
   await editTest.click();
-  const walkthrough = page.getByRole("dialog", { name: "Test walkthrough" });
+  assert.equal(await editTest.getAttribute("aria-pressed"), "true");
+  const walkthrough = page.getByRole("region", { name: "Test walkthrough" });
   await walkthrough.waitFor();
+  assert.equal(await page.getByRole("dialog").count(), 0);
   const code = walkthrough.getByRole("region", { name: "Implementation code" });
   const values = walkthrough.getByRole("region", { name: "Test values" });
+  const openCode = () => walkthrough.getByText("Implementation code", { exact: true }).click();
   const chooseStep = async (title) => {
     const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
     const labels = await picker.locator("option").allTextContents();
@@ -79,27 +85,20 @@ try {
     assert.ok(label, "Missing walkthrough step " + title);
     await picker.selectOption({ label });
   };
+  assert.equal(await map.locator(".region-on-route").count(), 3);
+  assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
+  assert.ok(await map.getByText("Saved SVG · Client", { exact: true }).isVisible());
+  const sidebarBounds = await sidebar.boundingBox();
+  const mapBounds = await map.boundingBox();
+  assert.ok(sidebarBounds.x + sidebarBounds.width < mapBounds.x);
+  await openCode();
   await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
   assert.match(await values.innerText(), /exampleSvg contains <title>Client<\/title>/);
-  assert.ok(await code.getByRole("link", { name: "Term.tsx:204–214" }).isVisible());
-  const viewport = page.viewportSize();
-  const dialogBounds = await walkthrough.boundingBox();
-  const codeBounds = await code.boundingBox();
-  assert.equal(dialogBounds.width, viewport.width);
-  assert.equal(dialogBounds.height, viewport.height);
-  assert.ok(codeBounds.width >= viewport.width * 0.9);
-  assert.ok(codeBounds.y < viewport.height / 2);
   await walkthrough.getByRole("button", { name: "Next", exact: true }).click();
-  await code.getByText('onClick={() => setMode("preview")}', { exact: false }).waitFor();
+  assert.ok(await map.getByText("Draft SVG · Browser", { exact: true }).isVisible());
   assert.match(await values.innerText(), /<title>Browser<\/title>/);
   await walkthrough.getByRole("button", { name: "Previous", exact: true }).click();
-  await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
-
-  await page.keyboard.press("Escape");
-  await walkthrough.waitFor({ state: "hidden" });
-  assert.equal(await editTest.evaluate((item) => item === document.activeElement), true);
-  await editTest.click();
-  await walkthrough.waitFor();
+  assert.ok(await map.getByText("Saved SVG · Client", { exact: true }).isVisible());
   const fresh = page.waitForResponse((response) => response.url().endsWith("/api/prs/14/capture"), { timeout: 180_000 });
   await page.getByRole("button", { name: "Run browser test", exact: true }).click();
   const response = await fresh;
@@ -112,29 +111,41 @@ try {
   for (const [button, label] of [["Preview the draft", "Browser"], ["Cancel", "Client"], ["Refresh the saved view", "Browser"]]) {
     await chooseStep(button);
     assert.match(await values.innerText(), new RegExp(label));
-    await walkthrough.getByText("Browser screenshot", { exact: true }).click();
     const image = page.getByRole("img", { name: button + " from the Chromium browser test" });
     await image.waitFor();
     await page.waitForFunction(() => document.querySelector(".capture img")?.naturalWidth > 0);
   }
   await chooseStep("Send an update");
+  assert.ok(await map.getByText("PATCH carries Browser SVG", { exact: true }).isVisible());
+  await openCode();
   await code.getByText('method: "PATCH"', { exact: false }).waitFor();
   assert.match(await values.innerText(), /JSON body diagram = changed/);
+  await chooseStep("Validate the update");
+  assert.equal(await map.locator(".region-active").getAttribute("data-region"), "api");
+  assert.equal(await map.locator(".active-edge").count(), 1);
   await chooseStep("Store the updated SVG");
+  assert.equal(await map.locator(".region-active").getAttribute("data-region"), "graph");
+  assert.ok(await map.getByText("Stored SVG · Browser", { exact: true }).isVisible());
+  await page.locator("#board-map").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: root + "/02-test-walkthrough.png" });
+  await openCode();
   await code.getByText("t.diagram = CASE WHEN", { exact: false }).waitFor();
   assert.match(await values.innerText(), /Stored SVG contains <title>Browser<\/title>/);
-  await walkthrough.screenshot({ path: root + "/02-test-walkthrough.png" });
+  await chooseStep("Refresh the saved view");
+  assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
+  assert.equal(await map.locator('[data-direction="return"]').count(), 2);
 
 
   await walkthrough.getByText("Add review note", { exact: true }).click();
-  await page.getByRole("textbox", { name: "Review note" }).fill("Selected verification note");
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await page.getByRole("button", { name: "Close walkthrough" }).click();
-  await page.locator(".behavior").filter({ hasText: "Invalidate other cached term details after a save" })
-    .getByRole("button", { name: "Add behavior note" }).click();
-  await page.getByRole("textbox", { name: "Review note" }).fill("Unselected verification note");
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await page.getByRole("button", { name: "Close walkthrough" }).click();
+  await walkthrough.getByRole("textbox", { name: "Review note" }).fill("Selected verification note");
+  await walkthrough.getByRole("button", { name: "Save draft" }).click();
+  const gap = sidebar.locator(".behavior").filter({ hasText: "Invalidate other cached term details after a save" });
+  await gap.locator("summary").first().click();
+  await gap.getByRole("button", { name: "Add behavior note" }).click();
+  const behaviorNote = page.getByRole("dialog", { name: "Behavior note" });
+  await behaviorNote.getByRole("textbox", { name: "Review note" }).fill("Unselected verification note");
+  await behaviorNote.getByRole("button", { name: "Save draft" }).click();
+  await behaviorNote.getByRole("button", { name: "Close walkthrough" }).click();
   await page.getByRole("checkbox", { name: /Selected verification note/ }).check();
   await page.getByRole("button", { name: "Preview selected notes" }).click();
   await page.getByRole("dialog").waitFor();
@@ -145,11 +156,19 @@ try {
   assert.deepEqual(submitted.notes.map((note) => note.text), ["Selected verification note"]);
   assert.ok(await page.getByText("Unselected verification note", { exact: true }).isVisible());
   await writeFile(root + "/simulated-submission.json", JSON.stringify(submitted, null, 2));
+
+  await sidebar.getByText("Preview and save supported SVG without interaction metadata", { exact: true }).click();
+  await sidebar.getByRole("button", { name: "SC-1 SVG: paste and preview before saving", exact: true }).click();
+  assert.equal(await map.locator(".region-on-route").count(), 1);
+  assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
+  assert.equal(await editTest.getAttribute("aria-pressed"), "false");
+
   await page.setViewportSize({ width: 390, height: 850 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await editTest.click();
   await walkthrough.waitFor();
   assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));
+  await openCode();
   await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
   const excerptsFit = await code.locator("pre").evaluateAll((items) =>
     items.every((item) => item.scrollWidth <= item.clientWidth));

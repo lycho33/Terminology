@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { architecture, components } from "./components.mjs";
+import { architecture, componentForPath, components } from "./components.mjs";
 import { createGitHub, repository } from "./github.mjs";
 import { analyze } from "./analyze.mjs";
 import { captureBrowser, readEvidence } from "./evidence.mjs";
@@ -59,10 +59,17 @@ function normalizePilotOrDraft(report) {
       ...test,
       id: behaviorIndex + "." + testIndex,
       path: test.path.filter((id) => ids.has(id)),
-      steps: test.steps.filter((step) => sourceLocation(step.source)).map((step) => ({
-        ...step,
-        code: (step.code ?? []).filter(codeRange).slice(0, 3),
-      })),
+      steps: test.steps.filter((step) => sourceLocation(step.source)).map((step) => {
+        const code = (step.code ?? []).filter(codeRange).slice(0, 3);
+        const implementation = code.map(({ path }) => componentForPath(path))
+          .find((id) => id && id !== "test" && id !== "docs");
+        return {
+          ...step,
+          code,
+          component: ids.has(step.component) ? step.component : implementation,
+          payload: typeof step.payload === "string" ? step.payload.slice(0, 100) : "",
+        };
+      }),
     })),
   }));
 }

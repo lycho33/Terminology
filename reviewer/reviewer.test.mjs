@@ -120,6 +120,12 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   assert.ok(displayed.behaviors.some(({ title, tests }) => title.includes("cached") && !tests.length));
   const editTest = displayed.behaviors.flatMap((item) => item.tests).find((item) => item.title === pilotCaptureTest);
   assert.deepEqual(editTest.steps.filter((step) => step.attachment).map((step) => step.value), ["Browser", "Client", "Browser"]);
+  assert.deepEqual(editTest.steps.map((step) => step.component),
+    ["editor", "editor", "editor", "editor", "data", "api", "database", "editor"]);
+  assert.equal(editTest.steps.find((step) => step.component === "database").payload, "Stored SVG · Browser");
+  const previewTest = displayed.behaviors[0].tests[0];
+  assert.equal(previewTest.steps[0].component, "editor");
+
   const stepUrl = "/api/prs/14/source/" + editTest.id + "/0";
   const revision = "?head=" + pilotHead + "&base=" + base;
   const { excerpts } = await read(stepUrl + revision);

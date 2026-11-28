@@ -21,14 +21,16 @@
     },
     "step": {
       "type": "object", "additionalProperties": false,
-      "required": ["title", "value", "detail", "basis", "source", "attachment", "before", "after", "code"],
+      "required": ["title", "value", "detail", "basis", "source", "attachment", "before", "after", "code", "component", "payload"],
       "properties": {
         "title": {"type": "string"}, "value": {"type": "string"}, "detail": {"type": "string"},
         "basis": {"type": "string", "enum": ["Test input", "Checked by test", "From source"]},
         "source": {"$ref": "#/$defs/source"},
         "attachment": {"type": ["string", "null"]},
         "before": {"type": "string"}, "after": {"type": "string"},
-        "code": {"type": "array", "items": {"$ref": "#/$defs/excerpt"}}
+        "code": {"type": "array", "items": {"$ref": "#/$defs/excerpt"}},
+        "component": {"type": ["string", "null"]},
+        "payload": {"type": "string"}
       }
     },
     "test": {

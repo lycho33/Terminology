@@ -12,8 +12,8 @@ const runner = "frontend/e2e/run.mjs";
 const source = (path, line) => ({ path, line });
 const excerpt = (path, line, end, label) => ({ path, line, end, label });
 const trace = (before, after, ...code) => ({ before, after, code });
-const step = (title, value, detail, basis, path, line, attachment, implementation) =>
-  ({ title, value, detail, basis, source: source(path, line), attachment, ...implementation });
+const step = (title, value, detail, basis, path, line, attachment, implementation, component, payload) =>
+  ({ title, value, detail, basis, source: source(path, line), attachment, ...implementation, component, payload });
 
 const preview = "Checked by test";
 const input = "Test input";
@@ -33,40 +33,40 @@ const edit = {
       trace("exampleSvg contains " + client, "get.term.diagram = exampleSvg\nnewDiagram = exampleSvg",
         excerpt(terms, 204, 214, "Read the saved term into the edit form"),
         excerpt(fixture, 15, 22, "SVG fixture"),
-        excerpt(spec, 214, 221, "Seed and open the test term"))),
+        excerpt(spec, 214, 221, "Seed and open the test term")), "editor", "Saved SVG · Client"),
     step("Preview the draft", "Browser", "The test replaces Client with Browser in the SVG string. The form stores the draft. Preview parses and renders that string locally.", preview, spec, 219, "review-preview",
       trace("changed = exampleSvg.replaceAll(\"Client\", \"Browser\")\nmode = \"code\"", "newDiagram contains " + browserTitle + "\nmode = \"preview\"",
         excerpt(terms, 240, 243, "Store the input in React state"),
         excerpt(field, 305, 318, "Parse the current draft"),
-        excerpt(field, 347, 354, "Switch to Preview"))),
+        excerpt(field, 347, 354, "Switch to Preview")), "editor", "Draft SVG · Browser"),
     step("Cancel", "Client", "Cancel exits edit mode. The saved view reads the saved term. SC-6 checks the Client label and reloads the original source from the API.", preview, spec, 226, "review-cancel",
       trace("Draft title = Browser\nSaved title = Client", "onEditMode(false)\nSaved view shows Client\nGET diagram === exampleSvg",
         excerpt(terms, 269, 272, "Exit edit mode"),
         excerpt(terms, 600, 604, "Render the saved diagram"),
-        excerpt(spec, 226, 232, "Check the label and stored value"))),
+        excerpt(spec, 226, 232, "Check the label and stored value")), "editor", "Saved SVG · Client"),
     step("Submit the edited form", "", "The test reopens the form, enters the same edited SVG, and clicks Update. The form validates the draft and passes it to the mutation.", inferred, spec, 233, null,
       trace("newDiagram = changed\nchanged contains " + browserTitle, "UpdateTermInput.diagram = changed",
         excerpt(terms, 245, 258, "Validate and pass the draft to the mutation"),
-        excerpt(spec, 233, 235, "Refill the draft and click Update"))),
+        excerpt(spec, 233, 235, "Refill the draft and click Update")), "editor", "Browser SVG passed to mutation"),
     step("Send an update", "diagram: SVG with Browser", "The mutation calls the HTTP action. The action serializes the same SVG string in the JSON body of a PATCH request.", inferred, actions, 92, null,
       trace("termInputs.term = term.name\ntermInputs.diagram = changed",
         "PATCH /terms/{encoded term.name}\nJSON body diagram = changed",
         excerpt(hooks, 48, 57, "Call the HTTP action"),
-        excerpt(actions, 92, 108, "Build the request"))),
+        excerpt(actions, 92, 108, "Build the request")), "data", "PATCH carries Browser SVG"),
     step("Validate the update", "", "FastAPI validates the diagram field before it calls the route. The validator checks the SVG and returns an accepted source string as supplied.", inferred, models, 24, null,
       trace("JSON diagram = changed\nSVG contains " + browserTitle, "payload.diagram = changed",
         excerpt(models, 14, 27, "Bind the validator to the diagram field"),
         excerpt(validator, 72, 92, "Load the rules and parse the SVG"),
-        excerpt(validator, 190, 196, "Return the accepted source"))),
+        excerpt(validator, 190, 196, "Return the accepted source")), "api", "Validated Browser SVG"),
     step("Store the updated SVG", "t.diagram = edited SVG", "The route passes the validated string to Cypher. The query replaces t.diagram because the update includes a value.", inferred, api, 122, null,
       trace("payload.diagram = changed\n$updated_diagram = changed", "t.diagram = changed\nStored SVG contains " + browserTitle,
         excerpt(api, 127, 135, "Update the Neo4j term"),
-        excerpt(api, 136, 143, "Pass the validated diagram as a query parameter"))),
+        excerpt(api, 136, 143, "Pass the validated diagram as a query parameter")), "database", "Stored SVG · Browser"),
     step("Refresh the saved view", "Browser", "The mutation invalidates the detail query. The saved view renders its updated value. SC-6 checks Browser and confirms that a GET returns the exact edited source.", preview, spec, 235, "edited-diagram",
       trace("Cached diagram contains " + client, "Saved view shows Browser\nGET diagram === changed",
         excerpt(hooks, 48, 57, "Invalidate term details after update"),
         excerpt(terms, 600, 604, "Read the current diagram into the saved view"),
-        excerpt(spec, 235, 240, "Check the updated view and GET result"))),
+        excerpt(spec, 235, 240, "Check the updated view and GET result")), "editor", "Saved view · Browser"),
   ],
 };
 

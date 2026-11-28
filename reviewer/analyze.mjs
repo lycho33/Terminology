@@ -72,6 +72,7 @@ async function analyzeRevision(pr, repoPath) {
       "Walk through the implementation code reached by the test. Give each step a short exact source range for the application code and use the test as separate evidence.",
       "Use before and after for concrete fixture values and their source-derived or asserted results. Use an empty string or array where the evidence is unavailable. Do not invent runtime values.",
       "Component IDs for a test path are test, editor, data, api, database, runtime, and docs.",
+      "Set component to the component where the step's result appears. Set payload to a short label for that result using the test fixture. Use null or an empty payload when it cannot be established.",
       "Return the requested JSON shape. If evidence is missing, state the gap and leave unverified links empty.",
       "",
       formatContext(pr, tests),

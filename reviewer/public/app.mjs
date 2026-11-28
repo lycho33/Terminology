@@ -134,6 +134,8 @@ function storeNotes() {
 async function openPull(number) {
   const generation = ++loadGeneration;
   current = null;
+  selectedBehavior = null;
+  selectedTest = null;
   pendingPull = number || null;
   failedPull = null;
   reviewError = "";
@@ -175,40 +177,69 @@ function intentView(pr) {
 
 function architectureView(pr) {
   const map = pr?.architecture ?? architecture([]);
-  const diagram = element("div", { class: "map-canvas" });
+  const steps = selectedTest?.steps ?? [];
+  const step = steps[stepIndex];
+  const active = step?.component;
+  const route = new Set([...(selectedTest?.path ?? []), ...steps.map((item) => item.component).filter(Boolean)]);
+  const regionIndex = (id) => mapRegions.findIndex((region) => region.members.includes(id));
+  const from = regionIndex(steps[stepIndex - 1]?.component);
+  const to = regionIndex(active);
+  const diagram = element("div", { class: "map-canvas" + (selectedTest ? " tracing" : "") });
   for (const [index, region] of mapRegions.entries()) {
     if (index > 0) {
       const upstream = mapRegions[index - 1].members.at(-1);
       const edge = map.connections.find(({ from, to }) => from === upstream && region.members.includes(to));
-      diagram.append(element("div", { class: "map-connection" }, element("span", {}, edge.label),
-        element("i", { "aria-hidden": "true" })));
+      const onRoute = route.has(edge.from) && route.has(edge.to);
+      const inMotion = from >= 0 && to >= 0 && index > Math.min(from, to) && index <= Math.max(from, to);
+      diagram.append(element("div", {
+        class: "map-connection" + (onRoute ? " route-edge" : "") + (inMotion ? " active-edge" : ""),
+        "data-direction": inMotion && to < from ? "return" : null,
+      }, element("span", {}, edge.label), element("i", { "aria-hidden": "true" })));
     }
     const members = region.members.map((id) => map.nodes.find((node) => node.id === id));
     const changed = members.some((node) => node.files.length);
+    const isActive = region.members.includes(active);
+    const onRoute = region.members.some((id) => route.has(id));
     diagram.append(element("article", {
-      class: "map-region map-" + region.id + (changed ? " region-changed" : ""),
+      class: "map-region map-" + region.id + (changed ? " region-changed" : "") +
+        (onRoute ? " region-on-route" : "") + (isActive ? " region-active" : ""),
       "data-region": region.id,
+      "aria-current": isActive ? "step" : null,
     }, element("div", { class: "map-region-title" }, element("h2", {}, region.label),
       element("p", {}, region.platform)),
-    element("div", { class: "map-modules" }, members.map(mapModule)),
+    element("div", { class: "map-modules" }, members.map((node) => mapModule(node, node.id === active))),
+    isActive ? mapPayload(step) : null,
     pr && !changed ? element("p", { class: "map-unchanged" }, "No direct changes") : null));
   }
-  const members = new Set(mapRegions.flatMap((region) => region.members));
-  const otherChanges = map.nodes.filter((node) => !members.has(node.id) && node.files.length);
+  const core = new Set(mapRegions.flatMap((region) => region.members));
+  const otherChanges = map.nodes.filter((node) => !core.has(node.id) && !route.has(node.id) && node.files.length);
+  const supporting = map.nodes.filter((node) => !core.has(node.id) && route.has(node.id));
   return element("section", { class: "architecture", "aria-labelledby": "architecture-title" },
     element("div", { class: "map-heading" },
       element("h1", { id: "architecture-title" }, "Architecture map"),
-      pr ? tag("Changed in PR #" + pr.number, "map-legend") : null),
+      element("div", { class: "map-legend-row" },
+        pr ? tag("Changed in PR #" + pr.number, "map-legend") : null,
+        selectedTest ? tag("Test path", "route-legend") : null,
+        selectedTest ? element("a", { class: "board-sidebar-link", href: "#board-sidebar" }, "Behaviors") : null)),
     diagram,
+    supporting.length ? element("div", { class: "map-support-items", "aria-label": "Supporting test components" },
+      supporting.map((node) => element("div", { class: "supporting-node" },
+        mapModule(node, node.id === active), node.id === active ? mapPayload(step) : null))) : null,
     otherChanges.length ? element("details", { class: "map-support" },
       element("summary", {}, "Other changed areas", element("span", {}, otherChanges.map((node) => node.label).join(" · "))),
-      element("div", { class: "map-support-items" }, otherChanges.map(mapModule))) : null);
+      element("div", { class: "map-support-items" }, otherChanges.map((node) => mapModule(node)))) : null);
 }
 
-function mapModule(node) {
-  if (!node.files.length) return element("div", { class: "map-module" }, node.label);
+function mapPayload(step) {
+  return element("div", { class: "map-payload" },
+    element("span", {}, "Current step"), element("strong", {}, step.payload || step.title));
+}
+
+function mapModule(node, isActive = false) {
+  const cls = "map-module" + (isActive ? " map-module-active" : "");
+  if (!node.files.length) return element("div", { class: cls }, node.label);
   const count = node.files.length;
-  return element("details", { class: "map-module changed" },
+  return element("details", { class: cls + " changed" },
     element("summary", {}, element("span", {}, node.label), tag(count + (count === 1 ? " file" : " files"), "changed-label")),
     element("ul", {}, node.files.map(({ path, revision }) =>
       element("li", {}, sourceLink({ path, line: 1, revision }, path.split("/").at(-1))))));
@@ -216,27 +247,33 @@ function mapModule(node) {
 
 function behaviorList(pr) {
   const withGaps = pr.behaviors.filter((item) => !item.tests.length || item.gaps.length);
-  const header = element("div", { class: "section-heading" }, element("h2", {}, "Behaviors and tests"),
+  const header = element("div", { class: "section-heading" }, element("h2", {}, "Behaviors"),
     withGaps.length ? tag(withGaps.length + " with test gaps", "amber") : null);
   const list = element("ul", { class: "behavior-list", "aria-label": "Changed and new behaviors" });
   for (const item of pr.behaviors) {
-    const detail = element("div", { class: "behavior-detail" }, element("h3", {}, item.title),
-      element("p", {}, item.detail),
-      item.gaps.length ? element("div", { class: "gap" }, element("strong", {}, "Test gap"),
-        element("ul", {}, item.gaps.map((gap) => element("li", {}, gap)))) : null,
-      element("div", { class: "behavior-actions" },
-        item.sources.length ? element("details", { class: "behavior-sources" },
-          element("summary", {}, "Source links"),
-          element("div", { class: "source-links" }, item.sources.map((source) => sourceLink(source)))) : null,
-        button("Add behavior note", () => openWalkthrough(item), "text-button")));
     const tests = item.tests.length
       ? element("ul", { class: "test-list", "aria-label": "Related tests for " + item.title },
         item.tests.map((test) => element("li", {},
-          button(test.title, () => openWalkthrough(item, test), "test-choice", { "aria-haspopup": "dialog" }))))
-      : element("div", { class: "test-empty" }, tag("No related test found", "amber"));
-    list.append(element("li", { class: "behavior" }, detail, tests));
+          button(test.title, () => selectTest(item, test), "test-choice", {
+            "data-test": test.id, "aria-pressed": String(selectedTest === test),
+          }))))
+      : null;
+    const badge = !item.tests.length ? tag("No related test found", "amber")
+      : item.gaps.length ? tag("Test gap", "amber")
+      : element("span", { class: "test-count" }, item.tests.length + (item.tests.length === 1 ? " test" : " tests"));
+    list.append(element("li", {},
+      element("details", { class: "behavior", open: selectedBehavior === item ? "" : null },
+        element("summary", {}, element("span", {}, item.title), badge),
+        element("div", { class: "behavior-detail" }, tests, element("p", {}, item.detail),
+          item.gaps.length ? element("div", { class: "gap" },
+            element("ul", {}, item.gaps.map((gap) => element("li", {}, gap)))) : null,
+          element("div", { class: "behavior-actions" },
+            item.sources.length ? element("details", { class: "behavior-sources" },
+              element("summary", {}, "Source links"),
+              element("div", { class: "source-links" }, item.sources.map((source) => sourceLink(source)))) : null,
+            button("Add behavior note", () => openBehaviorNote(item), "text-button"))))));
   }
-  return element("section", { class: "behaviors" }, header,
+  return element("section", { class: "behaviors", "aria-label": "Behaviors and tests" }, header,
     pr.method ? element("p", { class: "subhead" }, pr.method) : null,
     pr.reportError ? status(pr.reportError, true) : null,
     pr.fileListIncomplete ? status("GitHub did not return all changed files.") : null,
@@ -244,33 +281,49 @@ function behaviorList(pr) {
     pr.reportError ? button("Retry behavior report", () => openPull(pr.number), "subtle") : null);
 }
 
-function openWalkthrough(behavior, test = null) {
+function openBehaviorNote(behavior) {
+  const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" }, "Behavior note");
+  walkthroughBody.replaceChildren(element("section", { class: "walkthrough" },
+    element("div", { class: "section-heading walkthrough-header" }, title,
+      button("Close", () => walkthroughDialog.close(), "subtle", { "aria-label": "Close walkthrough" })),
+    element("h3", {}, behavior.title), element("p", {}, behavior.detail),
+    addNote(behavior.title, behavior.sources[0])));
+  walkthroughDialog.showModal();
+  title.focus({ preventScroll: true });
+}
+
+function selectTest(behavior, test) {
   selectedBehavior = behavior;
   selectedTest = test;
   stepIndex = 0;
   captureMessage = "";
-  walkthroughDialog.dataset.view = test ? "test" : "note";
-  renderWalkthrough();
-  walkthroughDialog.showModal();
-  walkthroughDialog.scrollTop = 0;
-  document.getElementById("walkthrough-heading").focus({ preventScroll: true });
+  renderSelection();
+  if (matchMedia("(max-width: 719px)").matches) {
+    document.getElementById("board-map").scrollIntoView({ block: "start" });
+  }
 }
 
-function renderWalkthrough() {
-  walkthroughBody.replaceChildren(walkthrough(current));
+function renderSelection() {
+  document.getElementById("board-map").replaceChildren(architectureView(current));
+  document.getElementById("board-trace").replaceChildren(selectedTest ? walkthrough(current) : "");
+  for (const control of main.querySelectorAll("[data-test]")) {
+    control.setAttribute("aria-pressed", String(control.dataset.test === selectedTest?.id));
+  }
 }
 
 function renderReview() {
   const pr = current;
-  const summary = pr ? element("section", { class: "review-hero" },
-    element("div", { class: "review-meta" }, tag("#" + pr.number, "neutral"),
-      pr.draft ? tag("Draft") : null,
-      link("Open on GitHub ↗", pr.url, "github-link"),
+  const summary = pr ? element("details", { class: "review-hero" },
+    element("summary", {}, "PR #" + pr.number, pr.draft ? " · Draft" : ""),
+    element("p", { class: "pr-heading" }, pr.title),
+    element("div", { class: "review-meta" }, link("Open on GitHub ↗", pr.url, "github-link"),
       element("code", { class: "commit" }, pr.head.slice(0, 8))),
-    element("h2", { class: "pr-heading" }, pr.title), intentView(pr)) : null;
-  const content = [architectureView(pr), pullPicker()];
-  if (pr) content.push(summary, behaviorList(pr), notePanel(pr));
-  main.replaceChildren(...content);
+    intentView(pr)) : null;
+  const map = element("div", { id: "board-map" }, architectureView(pr));
+  const sidebar = element("aside", { id: "board-sidebar", class: "board-sidebar", "aria-label": "Review sidebar" }, pullPicker(), summary,
+    pr ? behaviorList(pr) : null, pr ? notePanel(pr) : null);
+  const trace = element("div", { id: "board-trace" }, pr && selectedTest ? walkthrough(pr) : null);
+  main.replaceChildren(element("div", { class: "board" }, map, sidebar, trace));
 }
 
 function statusBadge(evidence) {
@@ -298,7 +351,7 @@ function excerptBlock(excerpt) {
 function implementationCode(pr, test, index) {
   const body = element("div", { class: "excerpt-list" }, status("Loading source…"));
   const section = element("section", { class: "implementation-code", "aria-label": "Implementation code" },
-    element("h5", {}, "Implementation code"), body);
+    body);
   const revision = new URLSearchParams({ head: pr.head, base: pr.base });
   const url = "/api/prs/" + pr.number + "/source/" + test.id + "/" + index + "?" + revision;
   if (!codeRequests.has(url)) {
@@ -327,9 +380,11 @@ function fixtureValues(step) {
 
 function selectStep(index) {
   stepIndex = index;
-  renderWalkthrough();
-  walkthroughDialog.scrollTop = 0;
+  renderSelection();
   document.getElementById("walkthrough-step").focus({ preventScroll: true });
+  if (matchMedia("(min-width: 720px)").matches) {
+    document.getElementById("board-map").scrollIntoView({ block: "nearest" });
+  }
 }
 
 function stepNavigation(test) {
@@ -348,7 +403,7 @@ function stepNavigation(test) {
 function screenshotEvidence(step, evidence) {
   if (!step.attachment) return null;
   const image = evidence?.images[step.attachment];
-  return element("details", { class: "walkthrough-disclosure" },
+  return element("details", { class: "walkthrough-disclosure", open: image ? "" : null },
     element("summary", {}, "Browser screenshot"),
     image ? element("figure", { class: "capture" }, element("img", {
       src: image, alt: step.title + " from the " + evidence.browser + " browser test",
@@ -357,57 +412,37 @@ function screenshotEvidence(step, evidence) {
 }
 
 function walkthrough(pr) {
-  const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" },
-    selectedTest ? "Test walkthrough" : "Behavior note");
-  const close = button("Close", () => walkthroughDialog.close(), "subtle", { "aria-label": "Close walkthrough" });
-  if (!selectedTest) {
-    return element("section", { class: "walkthrough" },
-      element("div", { class: "section-heading walkthrough-header" }, title, close),
-      element("h3", {}, selectedBehavior.title), element("p", {}, selectedBehavior.detail),
-      addNote(selectedBehavior.title, selectedBehavior.sources[0]));
-  }
-
   const test = selectedTest;
   const evidence = pr.evidence[test.id];
   const browserTest = test.source.path.startsWith("frontend/e2e/");
   const step = test.steps[stepIndex];
-  const header = element("header", { class: "walkthrough-top" },
-    element("div", { class: "walkthrough-shell" },
-      element("div", { class: "walkthrough-title-row" },
-        element("div", {}, title, element("p", { class: "walkthrough-test-title" }, test.title)), close),
-      element("div", { class: "walkthrough-controls" },
-        stepNavigation(test),
-        element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
-          browserTest ? button(capturePending ? "Test running…" : "Run browser test",
-            () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null))));
-
-  const path = test.path.length ? element("details", { class: "walkthrough-disclosure" },
-    element("summary", {}, "Affected components"),
-    element("ol", { class: "test-path", "aria-label": "Affected components" },
-      test.path.map((id) => {
-        const node = pr.architecture.nodes.find((item) => item.id === id);
-        return element("li", { class: node.files.length ? "on-path changed" : "on-path" }, node.label);
-      }))) : null;
+  const header = element("header", { class: "trace-header" },
+    element("div", { class: "trace-title" },
+      element("h2", {}, "Test walkthrough"),
+      element("p", { class: "walkthrough-test-title" }, test.title)),
+    stepNavigation(test));
   const checkpoint = step
     ? element("section", { class: "checkpoint" },
       element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
         sourceLink(step.source, "Step reference")),
-      element("p", {}, step.detail),
-      element("div", { class: "checkpoint-grid" }, fixtureValues(step), implementationCode(pr, test, stepIndex)),
-      screenshotEvidence(step, evidence))
+      element("p", {}, step.detail), fixtureValues(step), screenshotEvidence(step, evidence),
+      element("details", { class: "walkthrough-disclosure" }, element("summary", {}, "Implementation code"),
+        implementationCode(pr, test, stepIndex)))
     : status("This test has no walkthrough steps.");
   const context = selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : "");
+  const tools = element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
+    browserTest ? button(capturePending ? "Test running…" : "Run browser test",
+      () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null);
   const note = element("details", { class: "walkthrough-disclosure" },
     element("summary", {}, "Add review note"), addNote(context, step?.source ?? test.source));
-  return element("section", { class: "walkthrough walkthrough-test" }, header,
-    element("div", { class: "walkthrough-content walkthrough-shell" },
-      captureMessage ? status(captureMessage) : null, checkpoint, path, note));
+  return element("section", { class: "board-walkthrough", "aria-label": "Test walkthrough" }, header,
+    captureMessage ? status(captureMessage) : null, checkpoint, tools, note);
 }
 
 async function capture(pr, test) {
   capturePending = true;
   captureMessage = "";
-  renderWalkthrough();
+  renderSelection();
   try {
     pr.evidence[test.id] = await api("/api/prs/" + pr.number + "/capture", {
       head: pr.head, base: pr.base, test: test.id,
@@ -420,7 +455,7 @@ async function capture(pr, test) {
   } finally {
     if (current === pr) {
       capturePending = false;
-      if (walkthroughDialog.open) renderWalkthrough();
+      renderSelection();
     }
   }
 }
