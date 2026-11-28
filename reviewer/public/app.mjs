@@ -190,8 +190,11 @@ function codeKey(source) {
 
 function mapCode(source) {
   const name = source.path.split("/").at(-1);
+  const step = selectedTest?.steps[stepIndex];
+  const line = codeKey(source) === codeKey(step?.code[0]) ? step?.workflow?.focusLine : null;
   return element("div", { class: "map-code", "data-current-file": source.path },
-    element("span", {}, "Current file"), sourceLink(source, name));
+    element("span", {}, line ? "Current file · line " + line : "Current file"),
+    sourceLink(line ? { ...source, line } : source, name));
 }
 
 function architectureView(pr) {
@@ -363,7 +366,7 @@ function statusBadge(evidence) {
     evidence.result === "passed" ? "green" : "amber");
 }
 
-function excerptBlock(excerpt) {
+function excerptBlock(excerpt, focusLine) {
   const name = excerpt.path.split("/").at(-1);
   const range = name + ":" + excerpt.line + (excerpt.end > excerpt.line ? "–" + excerpt.end : "");
   const marker = button("Show on map", () => {
@@ -385,7 +388,8 @@ function excerptBlock(excerpt) {
       element("p", {}, "This excerpt could not be loaded. Open its source link."));
   }
   const lines = excerpt.lines.map((line, index) =>
-    element("span", { class: "excerpt-line" },
+    element("span", { class: "excerpt-line" + (excerpt.line + index === focusLine ? " current-code-line" : ""),
+      "data-line": excerpt.line + index },
       element("span", { class: "line-number", "aria-hidden": "true" }, excerpt.line + index),
       element("span", {}, line || " "), "\n"));
   return element("figure", { class: "code-excerpt" }, heading,
@@ -405,44 +409,75 @@ function stepSource(pr, test, index) {
   return codeRequests.get(url);
 }
 
-function implementationCode(source) {
+function implementationCode(source, focusLine) {
   const body = element("div", { class: "excerpt-list" }, status("Loading source…"));
   source.then(({ excerpts }) => {
-    body.replaceChildren(...excerpts.map(excerptBlock));
+    body.replaceChildren(...excerpts.map((excerpt, index) => excerptBlock(excerpt, index === 0 ? focusLine : null)));
   }).catch((error) => body.replaceChildren(status(error.message, true)));
   return element("section", { class: "implementation-code", "aria-label": "Implementation code" },
     element("h4", {}, "Implementation code"), body);
 }
 
+function frontendReplayFlow(workflow) {
+  const nodes = [["form", "CreateTermForm"], ["field", "DiagramField"], ["viewer", "DiagramViewer"]];
+  const path = element("div", { class: "replay-flow", "aria-label": "Frontend component flow" });
+  for (const [index, [id, label]] of nodes.entries()) {
+    if (index) {
+      const previous = nodes[index - 1][0];
+      const forward = workflow.from === previous && workflow.node === id;
+      const backward = workflow.from === id && workflow.node === previous;
+      path.append(element("span", {
+        class: "replay-edge" + (forward || backward ? " replay-edge-active" : ""),
+        "data-direction": backward ? "return" : null, "aria-hidden": "true",
+      }));
+    }
+    const active = workflow.node === id;
+    path.append(element("div", { class: "replay-node", "data-node": id, "aria-current": active ? "step" : null },
+      element("strong", {}, label), active ? element("code", {}, workflow.token) : null));
+  }
+  return path;
+}
+
+function replayState(workflow) {
+  const values = [["newDiagram", workflow.draft], ["parsed.diagram", workflow.parsed], ["mode", workflow.mode]];
+  return element("dl", { class: "replay-state", "aria-label": "Current frontend state" },
+    values.map(([name, value]) => element("div", {},
+      element("dt", {}, element("code", {}, name)), element("dd", {}, value))));
+}
+
 function workflowReplay(workflow, source) {
   if (!workflow) return null;
-  const stage = workflow.stage;
+  const { stage, mode } = workflow;
   const stageContent = element("div", { class: "replay-stage", "data-stage": stage });
   if (stage === "form") {
     stageContent.append(element("p", { class: "subhead" }, "Paste SVG code here."));
+  } else if (stage === "mode") {
+    stageContent.append(element("p", { class: "subhead" }, "Preview selected. The render uses the ready diagram."));
   } else {
     source.then(({ workflowFixture }) => {
       if (!workflowFixture) {
         stageContent.append(status("The SVG fixture is unavailable for this revision."));
         return;
       }
-      if (stage === "paste") {
-        stageContent.append(element("pre", { class: "replay-paste" }, element("code", {}, workflowFixture)));
+      if (stage !== "preview") {
+        stageContent.append(element("pre", { class: "replay-paste" + (stage === "paste" ? " replay-enter" : "") },
+          element("code", {}, workflowFixture)));
         return;
       }
       const fixture = new DOMParser().parseFromString(workflowFixture, "image/svg+xml");
       const labels = [...fixture.querySelectorAll("[data-node=true] > title")].map((node) => node.textContent);
       stageContent.append(element("div", { class: "replay-diagram", "aria-label": "Diagram preview" },
-        labels.map((label, index) => [index ? element("span", { "aria-hidden": "true" }, "→") : null,
-          element("strong", {}, label)]).flat()));
+        labels.flatMap((label, index) => [index ? element("span", { "aria-hidden": "true" }, "→") : null,
+          element("strong", {}, label)])));
     }).catch((error) => stageContent.append(status(error.message, true)));
   }
   return element("section", { class: "workflow-replay", "aria-label": "Workflow replay" },
     element("div", { class: "replay-heading" }, element("h4", {}, "Create term"), tag("Workflow replay")),
+    frontendReplayFlow(workflow), replayState(workflow),
     element("div", { class: "replay-name" }, element("span", {}, "Term name"), element("strong", {}, workflow.termName)),
     element("div", { class: "replay-toolbar" }, element("strong", {}, "Diagram"),
-      element("span", { class: stage !== "preview" ? "replay-active" : "" }, "Code"),
-      element("span", { class: stage === "preview" ? "replay-active replay-click" : "" }, "Preview")),
+      element("span", { class: mode === "code" ? "replay-active" : "" }, "Code"),
+      element("span", { class: mode === "preview" ? "replay-active" + (stage === "mode" ? " replay-click" : "") : "" }, "Preview")),
     stageContent);
 }
 
@@ -542,7 +577,7 @@ function walkthrough(pr) {
       element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
         sourceLink(step.source, "Step reference")),
       element("p", {}, step.detail), workflowReplay(step.workflow, source),
-      implementationCode(source), fixtureValues(step), screenshotEvidence(step, evidence))
+      implementationCode(source, step.workflow?.focusLine), fixtureValues(step), screenshotEvidence(step, evidence))
     : status("This test has no walkthrough steps.");
   const context = selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : "");
   const tools = element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,

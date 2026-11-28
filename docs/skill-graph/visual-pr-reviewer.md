@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the file highlights and create-term replay with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the component handoffs in the create-term replay with the user.
 
 ## Decisions
 
@@ -99,9 +99,15 @@ the fixture steps and Pause stops playback.
 
 The reviewed SVG creation test opens Create term, fills the name, pastes
 the saved SVG fixture, and clicks Preview. The replay uses the exact fixture
-from the reviewed revision. The board shows the source for the stage below
-the replay. The actual isolated browser test supplies the screen capture
-after Preview and asserts that the app sends no create request.
+from the reviewed revision. It shows the DiagramField textarea passing the
+SVG to CreateTermForm. The callback stores it in `newDiagram`
+(`frontend/src/terms/Term.tsx:100-103`). DiagramField parses the value while
+Code mode is active (`frontend/src/diagram/DiagramField.tsx:305-318`).
+Preview changes `mode` (`:347-354`). The render passes `parsed.diagram`
+to DiagramViewer (`:371-377`). Each step marks the current component and
+source line. The intermediate frames come from the source and fixture.
+The isolated browser test supplies the screen capture after Preview and
+asserts that the app sends no create request.
 
 ## Acceptance evidence
 
@@ -117,7 +123,7 @@ after Preview and asserts that the app sends no create request.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select the create-and-preview test to play form, paste, and Preview. Select the edit test to follow React, PATCH, and Neo4j. | See file highlights and reviewed source with test data. | 02-create-preview-replay.png and 02-test-walkthrough.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
+| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, fixture value, mode, and UI change together. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium passed the replay, source highlights, and isolated capture. | User requested component handoffs. Revised replay pending review. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -128,7 +134,7 @@ after Preview and asserts that the app sends no create request.
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
-- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-replay-verification
+- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-component-replay-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

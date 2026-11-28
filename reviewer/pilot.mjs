@@ -70,33 +70,51 @@ const edit = {
   ],
 };
 
+function createStep(description, workflow) {
+  return {
+    ...description,
+    workflow: {
+      ...workflow,
+      termName: "SVG preview example",
+      fixture: workflow.stage !== "form" ? fixture : undefined,
+    },
+  };
+}
+
 const createPreview = {
   title: "SC-1 SVG: paste and preview before saving",
   source: source(spec, 45),
   path: ["test", "editor"],
   steps: [
-    {
-      ...step("Open the Create term form", "", "The test opens Create term and fills in the term name. The form starts with an empty diagram.", input, spec, 50, null,
-        trace('Term name = "SVG preview example"', 'newDiagram = ""',
-          excerpt(terms, 80, 91, "Initialize the create form"),
-          excerpt("frontend/e2e/support/helpers.mjs", 39, 44, "Open the form and fill the term name")), "editor", "Empty SVG field"),
-      workflow: { stage: "form", termName: "SVG preview example" },
-    },
-    {
-      ...step("Paste the SVG fixture", "", "The Diagram field passes the pasted source to the form. React stores the full SVG in newDiagram.", inferred, spec, 51, null,
-        trace("Clipboard input = exampleSvg", "newDiagram = exampleSvg",
-          excerpt(terms, 100, 103, "Store the pasted text in React state"),
-          excerpt(field, 381, 390, "Pass the input change to the form")), "editor", "React holds the pasted SVG"),
-      workflow: { stage: "paste", termName: "SVG preview example", fixture },
-    },
-    {
-      ...step("Click Preview", "Client → Server", "Preview switches the field mode and renders the parsed diagram. The test checks both shapes, the arrow, and zero create requests.", preview, spec, 52, "preview-before-save",
-        trace('newDiagram = exampleSvg\nmode = "code"', 'mode = "preview"\nClient → Server\nPOST count = 0',
-          excerpt(field, 347, 354, "Switch the field to Preview"),
-          excerpt(field, 371, 377, "Render the parsed diagram"),
-          excerpt(spec, 52, 60, "Check the shapes and zero POST requests")), "editor", "Preview · Client → Server"),
-      workflow: { stage: "preview", termName: "SVG preview example", fixture },
-    },
+    createStep(step("Open the Create term form", "", "The test opens Create term and fills the name. The Diagram field starts in Code mode with an empty value.", input, spec, 50, null,
+      trace('Term name = "SVG preview example"', 'newDiagram = ""',
+        excerpt(terms, 80, 91, "Initialize the create form"),
+        excerpt(field, 304, 307, "Start the editable field in Code mode")), "editor", "Empty SVG field"),
+      { stage: "form", node: "form", token: 'newDiagram = ""', focusLine: 86, draft: "Empty", parsed: "None", mode: "code" }),
+    createStep(step("Paste the SVG", "", "Pasting changes the Diagram textarea. DiagramField sends the text to the form through its onChange callback.", inferred, spec, 51, null,
+      trace("Clipboard input = exampleSvg", "onChange receives exampleSvg",
+        excerpt(field, 381, 390, "Forward the textarea value"),
+        excerpt(terms, 179, 186, "Connect onChange to handleDiagramChange")), "editor", "Paste · exampleSvg"),
+      { stage: "paste", node: "field", from: "form", token: "Pasted SVG text", focusLine: 388, draft: "Empty before callback", parsed: "None", mode: "code" }),
+    createStep(step("Run handleDiagramChange", "", "The callback stores the SVG in the form's state. The form then passes it back to DiagramField as value. Code mode stays selected.", inferred, terms, 100, null,
+      trace("value = exampleSvg", 'newDiagram = exampleSvg\nmode = "code"',
+        excerpt(terms, 100, 103, "Store the SVG in the form"),
+        excerpt(terms, 180, 186, "Pass the new value to DiagramField")), "editor", "Form state · newDiagram"),
+      { stage: "store", node: "form", from: "field", token: "setNewDiagram(exampleSvg)", focusLine: 101, draft: "exampleSvg", parsed: "Recomputes on render", mode: "code" }),
+    createStep(step("Parse the new value", "", "DiagramField re-evaluates the diagram when its value changes. The fixture parses to a diagram with Client, Server, and their arrow. The textarea is still shown.", inferred, field, 309, null,
+      trace("value = exampleSvg", 'parsed.diagram contains Client → Server\nmode = "code"',
+        excerpt(field, 309, 318, "Parse the latest SVG value"),
+        excerpt(format, 218, 226, "Return the parsed elements and interaction flag")), "editor", "Parsed SVG · Client → Server"),
+      { stage: "parse", node: "field", from: "form", token: "value={exampleSvg}", focusLine: 311, draft: "exampleSvg", parsed: "Client → Server", mode: "code" }),
+    createStep(step("Click Preview", "", "The Preview button calls setMode. DiagramField uses this mode on its next render. The SVG source stays the same.", inferred, spec, 52, null,
+      trace('mode = "code"\nparsed.diagram is ready', 'mode = "preview"\nnewDiagram remains exampleSvg',
+        excerpt(field, 347, 354, "Switch the field to Preview")), "editor", "Preview selected"),
+      { stage: "mode", node: "field", token: 'setMode("preview")', focusLine: 350, draft: "exampleSvg", parsed: "Client → Server", mode: "preview" }),
+    createStep(step("Display DiagramViewer", "Client → Server", "The render condition selects DiagramViewer and passes it the parsed diagram. The test sees both shapes and their arrow, with zero create requests.", preview, spec, 53, "preview-before-save",
+      trace('mode = "preview"\nparsed.diagram is ready', "DiagramViewer shows Client → Server\nPOST count = 0",
+        excerpt(field, 371, 377, "Pass the parsed diagram to DiagramViewer"),
+        excerpt(spec, 53, 60, "Check the shapes and zero POST requests")), "editor", "DiagramViewer · Client → Server"),
+      { stage: "preview", node: "viewer", from: "field", token: "diagram={parsed.diagram}", focusLine: 375, draft: "exampleSvg", parsed: "Client → Server", mode: "preview" }),
   ],
 };
 

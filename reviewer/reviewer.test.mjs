@@ -126,9 +126,12 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   assert.equal(editTest.steps.find((step) => step.component === "database").payload, "Stored SVG · Browser");
   const previewTest = displayed.behaviors[0].tests[0];
   assert.equal(previewTest.steps[0].component, "editor");
-  assert.deepEqual(previewTest.steps.map((step) => step.workflow.stage), ["form", "paste", "preview"]);
+  assert.deepEqual(previewTest.steps.map((step) => step.workflow.stage), ["form", "paste", "store", "parse", "mode", "preview"]);
+  assert.deepEqual(previewTest.steps.map((step) => step.workflow.focusLine), [86, 388, 101, 311, 350, 375]);
+  assert.equal(previewTest.steps[2].workflow.mode, "code");
+  assert.equal(previewTest.steps.at(-1).workflow.node, "viewer");
   assert.equal(previewTest.steps.at(-1).code[0].path, "frontend/src/diagram/DiagramField.tsx");
-  const previewSource = await read("/api/prs/14/source/" + previewTest.id + "/2?head=" + pilotHead + "&base=" + base);
+  const previewSource = await read("/api/prs/14/source/" + previewTest.id + "/5?head=" + pilotHead + "&base=" + base);
   assert.equal(previewSource.workflowFixture, "<svg><title>Client</title></svg>");
 
   const stepUrl = "/api/prs/14/source/" + editTest.id + "/0";

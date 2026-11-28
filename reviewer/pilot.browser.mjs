@@ -164,28 +164,59 @@ try {
   assert.ok(selector.width > 115);
   await code.getByText("Initialize the create form", { exact: true }).waitFor();
   await walkthrough.getByRole("button", { name: "Play workflow", exact: true }).click();
+  const activeReplayNode = replay.locator('[aria-current="step"]');
+  const replayState = replay.locator(".replay-state");
+  const highlightedLine = code.locator(".current-code-line");
+
   await replay.locator('[data-stage="paste"] pre').waitFor();
   assert.match(await replay.locator("pre").textContent(), /data-diagram-version="1"/);
-  await replay.getByText("Server", { exact: true }).waitFor();
-  assert.ok(await replay.getByText("Client", { exact: true }).isVisible());
-  await code.getByText('onClick={() => setMode("preview")}', { exact: false }).waitFor();
-  assert.equal(await map.locator("[data-current-file]").getAttribute("data-current-file"), "frontend/src/diagram/DiagramField.tsx");
+  assert.equal(await activeReplayNode.getAttribute("data-node"), "field");
+  assert.equal(await replay.locator(".replay-edge-active").count(), 1);
+
+  await replay.locator('[data-stage="store"]').waitFor();
+  assert.equal(await activeReplayNode.getAttribute("data-node"), "form");
+  assert.equal(await replay.locator(".replay-edge-active").getAttribute("data-direction"), "return");
+  assert.match(await replayState.innerText(), /newDiagram\s+exampleSvg[\s\S]+mode\s+code/);
+  await highlightedLine.filter({ hasText: "setNewDiagram(value)" }).waitFor();
+
+  await replay.locator('[data-stage="parse"]').waitFor();
+  assert.equal(await activeReplayNode.getAttribute("data-node"), "field");
+  assert.match(await activeReplayNode.innerText(), /value=\{exampleSvg\}/);
+  assert.match(await replayState.innerText(), /parsed\.diagram\s+Client → Server[\s\S]+mode\s+code/);
+  await code.locator('.current-code-line[data-line="311"]').waitFor();
+
+  await replay.locator('[data-stage="mode"]').waitFor();
+  assert.match(await replayState.innerText(), /mode\s+preview/);
+  assert.equal(await replay.locator(".replay-diagram").count(), 0);
+  await code.locator('.current-code-line[data-line="350"]').waitFor();
+
+  const diagram = replay.getByLabel("Diagram preview", { exact: true });
+  await diagram.getByText("Server", { exact: true }).waitFor();
+  assert.ok(await diagram.getByText("Client", { exact: true }).isVisible());
+  assert.equal(await activeReplayNode.getAttribute("data-node"), "viewer");
+  await code.locator('.current-code-line[data-line="375"]').getByText("diagram={parsed.diagram}", { exact: false }).waitFor();
+  const currentFile = map.locator("[data-current-file]");
+  assert.equal(await currentFile.getAttribute("data-current-file"), "frontend/src/diagram/DiagramField.tsx");
+  assert.match(await currentFile.getByRole("link").getAttribute("href"), /#L375$/);
   assert.match(await values.innerText(), /POST count = 0/);
   await page.locator("#board-map").scrollIntoViewIfNeeded();
-  await page.screenshot({ path: root + "/02-create-preview-replay.png", fullPage: true });
+  await page.screenshot({ path: root + "/02-create-preview-replay.png", fullPage: true, animations: "disabled" });
 
   const createCapture = page.waitForResponse((response) => response.url().endsWith("/api/prs/14/capture"), { timeout: 180_000 });
   await walkthrough.getByRole("button", { name: "Run browser test", exact: true }).click();
   const createResult = await (await createCapture).json();
   assert.equal(createResult.result, "passed");
   assert.ok(createResult.images["preview-before-save"]);
-  await walkthrough.getByRole("img", { name: /^Click Preview from the Chromium browser test$/ }).waitFor();
+  await walkthrough.getByRole("img", { name: /^Display DiagramViewer from the Chromium browser test$/ }).waitFor();
   assert.equal(await map.locator(".region-on-route").count(), 1);
   assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
   assert.equal(await editTest.getAttribute("aria-pressed"), "false");
 
   await page.setViewportSize({ width: 390, height: 850 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  assert.ok(await replay.evaluate((node) => node.scrollWidth <= node.clientWidth));
+  await chooseStep("Run handleDiagramChange");
+  assert.ok(await replay.evaluate((node) => node.scrollWidth <= node.clientWidth));
   await editTest.click();
   await walkthrough.waitFor();
   assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));
