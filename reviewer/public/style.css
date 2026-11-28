@@ -447,6 +447,19 @@ dialog::backdrop { background: #1b2b2580; }
   grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr);
   align-items: center;
 }
+.replay-flow[data-count="2"] {
+  grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr);
+}
+.replay-flow[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+.step-flow {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f5f8f2;
+}
 .replay-node {
   display: grid;
   align-content: start;

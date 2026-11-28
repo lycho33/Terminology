@@ -21,7 +21,7 @@
     },
     "step": {
       "type": "object", "additionalProperties": false,
-      "required": ["title", "value", "detail", "basis", "source", "attachment", "before", "after", "code", "component", "payload"],
+      "required": ["title", "value", "detail", "basis", "source", "attachment", "before", "after", "code", "component", "payload", "flow"],
       "properties": {
         "title": {"type": "string"}, "value": {"type": "string"}, "detail": {"type": "string"},
         "basis": {"type": "string", "enum": ["Test input", "Checked by test", "From source"]},
@@ -30,7 +30,15 @@
         "before": {"type": "string"}, "after": {"type": "string"},
         "code": {"type": "array", "items": {"$ref": "#/$defs/excerpt"}},
         "component": {"type": ["string", "null"]},
-        "payload": {"type": "string"}
+        "payload": {"type": "string"},
+        "flow": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["from", "to"],
+          "properties": {
+            "from": {"type": ["string", "null"]},
+            "to": {"type": "string"}
+          }
+        }
       }
     },
     "test": {

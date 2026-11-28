@@ -119,7 +119,16 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   const displayed = await read("/api/prs/14");
   assert.equal(displayed.behaviors.length, 14);
   assert.ok(displayed.behaviors.some(({ title, tests }) => title.includes("cached") && !tests.length));
-  const editTest = displayed.behaviors.flatMap((item) => item.tests).find((item) => item.title === pilotCaptureTest);
+  const allTests = displayed.behaviors.flatMap((item) => item.tests);
+  assert.equal(new Set(allTests.map(({ title }) => title)).size, 19);
+  for (const test of allTests) {
+    assert.ok(test.steps.length > 1, test.title);
+    for (const step of test.steps) {
+      assert.ok(step.before && step.after && step.code.length && step.component, step.title);
+      assert.ok(step.workflow || (step.flow?.from && step.flow.to), step.title);
+    }
+  }
+  const editTest = allTests.find((item) => item.title === pilotCaptureTest);
   assert.deepEqual(editTest.steps.filter((step) => step.attachment).map((step) => step.value), ["Browser", "Client", "Browser"]);
   assert.deepEqual(editTest.steps.map((step) => step.component),
     ["editor", "editor", "editor", "editor", "data", "api", "database", "editor"]);

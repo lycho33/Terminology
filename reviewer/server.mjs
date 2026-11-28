@@ -9,7 +9,7 @@ import { architecture, componentForPath, components } from "./components.mjs";
 import { createGitHub, repository } from "./github.mjs";
 import { analyze } from "./analyze.mjs";
 import { captureBrowser, readEvidence } from "./evidence.mjs";
-import { isPilot, pilotCaptureTest } from "./pilot.mjs";
+import { isPilot } from "./pilot.mjs";
 
 const publicFiles = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
@@ -67,6 +67,10 @@ function normalizePilotOrDraft(report) {
           ...step,
           code,
           component: ids.has(step.component) ? step.component : implementation,
+          flow: typeof step.flow?.to === "string" && step.flow.to.trim() ? {
+            from: typeof step.flow.from === "string" ? step.flow.from.trim().slice(0, 100) : null,
+            to: step.flow.to.trim().slice(0, 100),
+          } : null,
           payload: typeof step.payload === "string" ? step.payload.slice(0, 100) : "",
         };
       }),
@@ -146,14 +150,14 @@ export function createReviewer({
   const captureKey = (pr, test) => [pr.head, test.source.path, test.title].join(":");
 
   async function evidenceFor(pr, test) {
-    const capture = captures.get(captureKey(pr, test));
-    if (capture) return capture;
-    if (priorPilotRun && isPilot(pr) && test.title === pilotCaptureTest) {
-      const found = await readEvidence(priorPilotRun, test, pr.head).catch((error) => {
+    const id = captureKey(pr, test);
+    if (captures.has(id)) return captures.get(id);
+    if (priorPilotRun && isPilot(pr) && test.source.path.startsWith("frontend/e2e/")) {
+      const found = await readEvidence(priorPilotRun, test, pr.head, { optional: true }).catch((error) => {
         console.warn("Previous pilot evidence unavailable: " + error.message);
         return null;
       });
-      if (found) captures.set(captureKey(pr, test), found);
+      captures.set(id, found);
       return found;
     }
     return null;

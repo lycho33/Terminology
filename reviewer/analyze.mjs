@@ -70,6 +70,7 @@ async function analyzeRevision(pr, repoPath) {
       "Use the exact Playwright test title and repo-relative file path. Use actual attachment names only if verified in the test.",
       "Call out concrete gaps in each behavior. For test steps use fixture inputs and source. Do not claim a test ran.",
       "Walk through the implementation code reached by the test. Give each step a short exact source range for the application code and use the test as separate evidence.",
+      "Split each source-backed test into several ordered steps when the evidence shows distinct actions. For every step name the code component receiving the input in flow.to and its sender in flow.from. Use actual names from source. Leave flow.from null for a local state change. Use flow null if no component is established.",
       "Use before and after for concrete fixture values and their source-derived or asserted results. Use an empty string or array where the evidence is unavailable. Do not invent runtime values.",
       "Component IDs for a test path are test, editor, data, api, database, runtime, and docs.",
       "Set component to the component where the step's result appears. Set payload to a short label for that result using the test fixture. Use null or an empty payload when it cannot be established.",

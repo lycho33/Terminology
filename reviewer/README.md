@@ -16,8 +16,9 @@ with an architecture map. Select a draft or open PR below it to highlight
 the affected areas. Expand a behavior in the sidebar and select a test.
 The board highlights the related components and marks the current step.
 Use Previous, Next, the step selector, or Play workflow to follow the
-test fixture. The map shows the current source file. Select Show on map
-on an excerpt to highlight that file. The create-and-preview test shows
+test fixture. Each step shows the component handoff, the input and result,
+and the related source. The map shows the current source file. Select
+Show on map on an excerpt to highlight that file. The create-and-preview test shows
 the SVG text moving between CreateTermForm and DiagramField. It shows the
 draft, parsed diagram, and mode as they change, then shows DiagramViewer.
 The board marks the source line for each step. Browser screenshots are

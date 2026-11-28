@@ -227,6 +227,36 @@ try {
   assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
   assert.equal(await editTest.getAttribute("aria-pressed"), "false");
 
+  let visited = 0;
+  for (const behavior of await sidebar.locator(".behavior").all()) {
+    const choices = await behavior.locator("[data-test]").all();
+    if (!choices.length) continue;
+    if (await behavior.getAttribute("open") === null) {
+      await behavior.locator("summary").first().click();
+    }
+    for (const choice of choices) {
+      await choice.click();
+      assert.ok(await walkthrough.getByRole("button", { name: "Play workflow" }).isVisible());
+      const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
+      for (const label of await picker.locator("option").allTextContents()) {
+        await picker.selectOption({ label });
+        const flow = walkthrough.locator(".replay-flow");
+        assert.equal(await flow.locator('[aria-current="step"]').count(), 1, label);
+        assert.ok((await values.innerText()).includes("Result"), label);
+        assert.equal(await map.locator("[data-current-file]").count(), 1, label);
+        await code.locator(".current-code-line").waitFor();
+      }
+      visited++;
+    }
+  }
+  assert.equal(visited, 24);
+
+  await sidebar.getByRole("button", { name: "SC-3 SVG: zoom, pan, reset, and narrow layout", exact: true }).click();
+  await chooseStep("Pan the view");
+  await code.locator(".current-code-line").waitFor();
+  await walkthrough.screenshot({ path: root + "/02-pan-data-flow.png", animations: "disabled" });
+
+  await sidebar.getByRole("button", { name: "SC-1 SVG: paste and preview before saving", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 850 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.ok(await replay.evaluate((node) => node.scrollWidth <= node.clientWidth));

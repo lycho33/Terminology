@@ -12,14 +12,17 @@ function specs(suites) {
   return suites.flatMap((suite) => [...(suite.specs ?? []), ...specs(suite.suites ?? [])]);
 }
 
-export async function readEvidence(runDir, test, head) {
+export async function readEvidence(runDir, test, head, { optional = false } = {}) {
   const { reviewedHead } = JSON.parse(await readFile(join(runDir, "reviewer-revision.json"), "utf8"));
   if (reviewedHead !== head) throw new Error("This report belongs to another revision.");
   const report = JSON.parse(await readFile(join(runDir, "results.json"), "utf8"));
   const testFile = test.source.path.replace(/^frontend\/e2e\//, "");
   const spec = specs(report.suites).find((item) => item.title === test.title && item.file === testFile);
   const result = spec?.tests.find((item) => item.projectName === "chromium")?.results.at(-1);
-  if (!result) throw new Error("The isolated run did not select the requested Chromium test.");
+  if (!result) {
+    if (optional) return null;
+    throw new Error("The isolated run did not select the requested Chromium test.");
+  }
   const files = new Map();
   const root = await realpath(runDir);
   for (const item of result.attachments) {

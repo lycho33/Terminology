@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review scroll position when Next advances the SVG replay.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the component and data flow for all mapped tests.
 
 ## Decisions
 
@@ -116,6 +116,25 @@ the map. `reviewer/pilot.browser.mjs:165` checks exact scroll coordinates
 before Next and after the excerpt loads at 853 px and 390 px widths.
 Both passed. A direct click in Codex kept the viewport at 545 px.
 
+## Data flow across all PR #14 tests
+
+The user asked for the component and data flow in every test walkthrough.
+The PR #14 report has 19 distinct tests and 24 links from behaviors to tests.
+This includes four changed regression cases from the CRUD, HTTP validation,
+and Neo4j suites that the sidebar did not previously link.
+`reviewer/pilot.mjs` supplies ordered handoffs, fixture inputs and results,
+source ranges, and named captures. `reviewer/public/app.mjs` shows the active
+component, data, and code for each step. The API walkthrough identifies the
+mock query and displays the rejection path that stops before the query.
+The analyzer requests the same flow fields for other PR drafts.
+
+The reviewer check opened each of the 24 test links and checked every step
+for an active component, result, map file, and highlighted source. It also
+checked the scroll position and captured the pan step. The isolated runs
+passed 15 Chromium tests, three SVG API tests, and one Neo4j integration
+test. The browser cases with named captures supplied screenshots. The
+reviewer's note submission check used a simulated response.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -130,7 +149,7 @@ Both passed. A direct click in Codex kept the viewport at 545 px.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, fixture value, mode, and UI change together. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium passed the replay, source highlights, isolated capture, and the Next scroll check. | User reported a jump on Next. Scroll correction pending user review. |
+| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, and fixture input and result for every mapped test. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium checked all 24 test links. The isolated browser, SVG API, and Neo4j checks passed. | Updated data flows pending user review. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -143,6 +162,10 @@ Both passed. A direct click in Codex kept the viewport at 545 px.
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
 - Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-component-replay-verification
 - SC-2 scroll evidence: /private/tmp/terminology-reviewer-scroll-verification/02-before-next.png and 02-after-next.png
+- SC-2 component data flow evidence: /private/tmp/terminology-reviewer-all-flows/02-pan-data-flow.png
+- Isolated PR #14 browser report: /private/tmp/terminology-all-review-tests.nqGD0N/frontend/e2e-artifacts/run-jERedE/results.json
+- SVG API tests: `.venv/bin/python -m unittest discover -s tests -p test_svg_diagram.py`
+- Neo4j integration: `python -m unittest discover -s tests -p test_neo4j_integration.py` from the archived PR head, with `NEO4J_TEST_URI` set to a new disposable loopback container.
 - Explanation HTML: /private/tmp/2026-11-27-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

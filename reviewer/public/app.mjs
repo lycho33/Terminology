@@ -1,4 +1,4 @@
-import { architecture, componentForPath, mapRegions } from "/components.mjs";
+import { architecture, componentForPath, components, mapRegions } from "/components.mjs";
 
 const main = document.getElementById("main");
 const walkthroughDialog = document.getElementById("walkthrough-dialog");
@@ -191,7 +191,7 @@ function codeKey(source) {
 function mapCode(source) {
   const name = source.path.split("/").at(-1);
   const step = selectedTest?.steps[stepIndex];
-  const line = codeKey(source) === codeKey(step?.code[0]) ? step?.workflow?.focusLine : null;
+  const line = codeKey(source) === codeKey(step?.code[0]) ? stepFocus(step) : null;
   return element("div", { class: "map-code", "data-current-file": source.path },
     element("span", {}, line ? "Current file · line " + line : "Current file"),
     sourceLink(line ? { ...source, line } : source, name));
@@ -418,9 +418,8 @@ function implementationCode(source, focusLine) {
     element("h4", {}, "Implementation code"), body);
 }
 
-function frontendReplayFlow(workflow) {
-  const nodes = [["form", "CreateTermForm"], ["field", "DiagramField"], ["viewer", "DiagramViewer"]];
-  const path = element("div", { class: "replay-flow", "aria-label": "Frontend component flow" });
+function componentFlow(nodes, workflow, label) {
+  const path = element("div", { class: "replay-flow", "data-count": nodes.length, "aria-label": label });
   for (const [index, [id, label]] of nodes.entries()) {
     if (index) {
       const previous = nodes[index - 1][0];
@@ -473,7 +472,8 @@ function workflowReplay(workflow, source) {
   }
   return element("section", { class: "workflow-replay", "aria-label": "Workflow replay" },
     element("div", { class: "replay-heading" }, element("h4", {}, "Create term"), tag("Workflow replay")),
-    frontendReplayFlow(workflow), replayState(workflow),
+    componentFlow([["form", "CreateTermForm"], ["field", "DiagramField"], ["viewer", "DiagramViewer"]],
+      workflow, "Frontend component flow"), replayState(workflow),
     element("div", { class: "replay-name" }, element("span", {}, "Term name"), element("strong", {}, workflow.termName)),
     element("div", { class: "replay-toolbar" }, element("strong", {}, "Diagram"),
       element("span", { class: mode === "code" ? "replay-active" : "" }, "Code"),
@@ -481,11 +481,26 @@ function workflowReplay(workflow, source) {
     stageContent);
 }
 
-function fixtureValues(step) {
+function stepFlow(step) {
+  const to = step.flow?.to || components.find(({ id }) => id === step.component)?.label;
+  const from = step.flow?.from;
+  const nodes = from && from !== to ? [["from", from], ["to", to]] : [["to", to]];
+  return element("section", { class: "step-flow", "aria-label": "Component and data flow" },
+    element("h4", {}, "Component and data flow"),
+    to ? componentFlow(nodes, { node: "to", from: from ? "from" : null, token: step.payload }, "Component handoff")
+      : element("p", { class: "subhead" }, "Component is unavailable for this step."),
+    fixtureValues(step, false) ?? element("p", { class: "subhead" }, "Fixture values are unavailable for this step."));
+}
+
+function stepFocus(step) {
+  return step?.workflow?.focusLine ?? step?.code[0]?.line;
+}
+
+function fixtureValues(step, heading = true) {
   const after = step.after || step.value;
   if (!step.before && !after) return null;
   return element("section", { class: "fixture-values", "aria-label": "Test values" },
-    element("h5", {}, "Test values"),
+    heading ? element("h5", {}, "Test values") : null,
     step.before ? element("div", { class: "fixture-value" }, element("strong", {}, "Input"),
       element("pre", {}, element("code", {}, step.before))) : null,
     after ? element("div", { class: "fixture-value" }, element("strong", {}, "Result"),
@@ -573,8 +588,10 @@ function walkthrough(pr) {
     ? element("section", { class: "checkpoint" },
       element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
         sourceLink(step.source, "Step reference")),
-      element("p", {}, step.detail), workflowReplay(step.workflow, source),
-      implementationCode(source, step.workflow?.focusLine), fixtureValues(step), screenshotEvidence(step, evidence))
+      step.detail ? element("p", {}, step.detail) : null,
+      step.workflow ? workflowReplay(step.workflow, source) : stepFlow(step),
+      implementationCode(source, stepFocus(step)), step.workflow ? fixtureValues(step) : null,
+      screenshotEvidence(step, evidence))
     : status("This test has no walkthrough steps.");
   const context = selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : "");
   const tools = element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
