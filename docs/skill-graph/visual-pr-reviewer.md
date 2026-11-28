@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the shape motion and UI changes during test playback.
+- Current role: UI Verifier. Current scenario: SC-1 at the user's request. Next action: review the loader during a PR switch.
 
 ## Decisions
 
@@ -157,6 +157,21 @@ shape descriptions, Docker zoom, and Browser → Client → Browser across
 edit, cancel, and save. Chromium also confirmed that reduced motion
 skips the diagram animation. The five reviewer tests passed.
 
+## Loader when switching PRs
+
+The user asked for a loader when the selected PR changes. The picker now
+shows a spinner and the selected PR number while the review request is
+pending (`reviewer/public/app.mjs:106`). The spinner respects reduced motion
+(`reviewer/public/style.css:254`). The request handler clears the loader
+when the review opens or the error appears. A later selection still takes
+priority over an earlier request.
+
+The Chromium check delays a simulated failure and a live PR #14 response.
+It verifies that the loader appears during both waits. It verifies the
+error and retry control for the simulated failure and the behavior list
+for the successful request (`reviewer/pilot.browser.mjs:55`). The system
+also observed the loader before PR #12 opened in Codex.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -170,7 +185,7 @@ skips the diagram animation. The five reviewer tests passed.
 
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
-| SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
+| SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. Switching PRs shows a loader. The map then highlights the areas changed by the selected PR. | 01-switching-pr.png. Chromium verified loader on success and simulated error. | Loader pending user review. |
 | SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the UI animate with the handoff, source line and fixture result in each UI test. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium checked all 24 test links. The isolated browser, SVG API, and Neo4j checks passed. | UI replay pending user review. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
@@ -189,6 +204,7 @@ skips the diagram animation. The five reviewer tests passed.
 - SVG API tests: `.venv/bin/python -m unittest discover -s tests -p test_svg_diagram.py`
 - Neo4j integration: `python -m unittest discover -s tests -p test_neo4j_integration.py` from the archived PR head, with `NEO4J_TEST_URI` set to a new disposable loopback container.
 - SC-2 UI replay evidence: /private/tmp/terminology-reviewer-ui-motion/02-shape-motion-replay.png
+- SC-1 loader evidence: /private/tmp/terminology-reviewer-pr-loader/01-switching-pr.png
 - Explanation HTML: /private/tmp/2026-11-27-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

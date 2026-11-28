@@ -21,10 +21,13 @@ try {
     submitted = route.request().postDataJSON();
     await route.fulfill({ json: { id: 123, url: "https://github.com/lycho33/Terminology/pull/14#simulated-review" } });
   });
+  const simulatedPull = 9001;
   const releaseList = Promise.withResolvers();
   await page.route("**/api/prs", async (route) => {
     await releaseList.promise;
-    await route.continue();
+    const response = await route.fetch();
+    const pulls = await response.json();
+    await route.fulfill({ response, json: [...pulls, { number: simulatedPull, title: "Loader test", draft: false }] });
   });
 
   await page.goto(url);
@@ -46,7 +49,37 @@ try {
 
   await picker.selectOption("14");
   const sidebar = page.getByRole("complementary", { name: "Review sidebar" });
-  await sidebar.getByRole("heading", { name: "Behaviors", exact: true }).waitFor();
+  const behaviors = sidebar.getByRole("heading", { name: "Behaviors", exact: true });
+  await behaviors.waitFor();
+
+  const failReview = Promise.withResolvers();
+  await page.route("**/api/prs/" + simulatedPull, async (route) => {
+    await failReview.promise;
+    await route.fulfill({ status: 503, json: { error: "Simulated review error." } });
+  });
+  const loader = sidebar.getByRole("status").filter({ hasText: "Loading PR #" });
+  await picker.selectOption(String(simulatedPull));
+  await loader.waitFor();
+  assert.equal(await loader.innerText(), "Loading PR #" + simulatedPull + "…");
+  assert.ok(await loader.locator(".review-spinner").isVisible());
+  assert.equal(await behaviors.count(), 0);
+  await page.screenshot({ path: root + "/01-switching-pr.png" });
+  failReview.resolve();
+  await sidebar.getByRole("alert").filter({ hasText: "Simulated review error." }).waitFor();
+  assert.equal(await loader.count(), 0);
+  assert.ok(await sidebar.getByRole("button", { name: "Retry review" }).isVisible());
+
+  const loadReview = Promise.withResolvers();
+  await page.route("**/api/prs/14", async (route) => {
+    await loadReview.promise;
+    await route.continue();
+  }, { times: 1 });
+  await picker.selectOption("14");
+  await loader.waitFor();
+  assert.equal(await loader.innerText(), "Loading PR #14…");
+  loadReview.resolve();
+  await behaviors.waitFor();
+  assert.equal(await loader.count(), 0);
   await sidebar.getByText("PR #14 · Draft", { exact: true }).click();
   assert.ok(await page.getByText("No related test found", { exact: true }).count() >= 1);
   assert.ok(await page.getByText("PR description", { exact: true }).isVisible());

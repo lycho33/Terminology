@@ -251,6 +251,28 @@ summary { cursor: pointer; }
 .test-list { list-style: none; padding: 0; display: grid; gap: 4px; }
 .test-choice { width: 100%; color: var(--green); text-align: left; overflow-wrap: anywhere; }
 .test-choice[aria-pressed="true"] { background: #e2f0ee; border-color: #267a70; color: #174e46; font-weight: 650; }
+.review-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 650;
+}
+.review-spinner {
+  flex: none;
+  width: 1.15em;
+  aspect-ratio: 1;
+  border: 2px solid var(--green);
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: review-spin .8s linear infinite;
+}
+@keyframes review-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .review-spinner { animation: none; } }
+
 .board-sidebar .pull-field { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .board-sidebar .pr-heading { font-size: 1rem; }
 .source-link { font-family: ui-monospace, monospace; font-size: .8rem; }
