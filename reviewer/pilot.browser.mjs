@@ -77,6 +77,7 @@ try {
   assert.equal(await page.getByRole("dialog").count(), 0);
   const code = walkthrough.getByRole("region", { name: "Implementation code" });
   const values = walkthrough.getByRole("region", { name: "Test values" });
+  const uiReplay = walkthrough.getByRole("region", { name: "UI replay" });
   const chooseStep = async (title) => {
     const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
     const labels = await picker.locator("option").allTextContents();
@@ -235,6 +236,8 @@ try {
       await behavior.locator("summary").first().click();
     }
     for (const choice of choices) {
+      const title = await choice.innerText();
+      const visual = !title.startsWith("test_") && !title.startsWith("real HTTP");
       await choice.click();
       assert.ok(await walkthrough.getByRole("button", { name: "Play workflow" }).isVisible());
       const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
@@ -245,11 +248,57 @@ try {
         assert.ok((await values.innerText()).includes("Result"), label);
         assert.equal(await map.locator("[data-current-file]").count(), 1, label);
         await code.locator(".current-code-line").waitFor();
+        assert.equal(await walkthrough.getByRole("region", { name: /^(UI|Workflow) replay$/ }).count(),
+          visual ? 1 : 0, title + " / " + label);
+        if (await uiReplay.locator(".replay-paste").count()) {
+          await uiReplay.getByText("Loading SVG source…", { exact: true }).waitFor({ state: "hidden" });
+          assert.equal(await uiReplay.getByText("SVG fixture unavailable.", { exact: true }).count(), 0, label);
+        }
       }
       visited++;
     }
   }
   assert.equal(visited, 24);
+
+  await sidebar.getByRole("list", { name: "Related tests for Move annotated shapes and their connectors" })
+    .getByRole("button", { name: "SC-4 SVG: temporary shape movement keeps connections after zoom and pan", exact: true }).click();
+  const connector = uiReplay.locator("line");
+  await chooseStep("Redraw the arrow");
+  assert.equal(await connector.getAttribute("x1"), "214");
+  assert.equal(await connector.getAttribute("x2"), "330");
+  assert.equal(await uiReplay.locator('[data-shape="client"] rect').getAttribute("x"), "54");
+  assert.equal(await connector.locator('animate[attributeName="x1"]').getAttribute("from"), "190");
+  await chooseStep("Move the Server endpoint by keyboard");
+  assert.equal(await connector.getAttribute("x2"), "320");
+  assert.equal(await connector.locator('animate[attributeName="x2"]').getAttribute("to"), "320");
+  await code.locator(".current-code-line").waitFor();
+  await page.waitForFunction(() => document.querySelector(".ui-replay line")?.x2.animVal.value === 320);
+  await walkthrough.screenshot({ path: root + "/02-shape-motion-replay.png", animations: "disabled" });
+
+  await sidebar.getByRole("button", { name: "SC-5 SVG: shape details come from pasted descriptions", exact: true }).click();
+  await chooseStep("Read the Client description");
+  await uiReplay.getByText("The client sends a request to the server.", { exact: true }).waitFor();
+  await chooseStep("Read the Server description");
+  await uiReplay.getByText("The server processes the request and returns a response.", { exact: true }).waitFor();
+  assert.equal(await uiReplay.locator("[data-selected]").getAttribute("data-selected"), "server");
+
+  await sidebar.getByRole("button", { name: "SC-1 SVG: ordinary Docker source saves unchanged and supports view controls", exact: true }).first().click();
+  await chooseStep("Preview the Docker diagram");
+  await page.waitForFunction(() => document.querySelector(".ui-docker-canvas img")?.naturalWidth > 0);
+  await chooseStep("Zoom in");
+  assert.equal(await uiReplay.locator(".ui-zoom").innerText(), "125%");
+  await page.waitForFunction(() => {
+    const image = document.querySelector(".ui-docker-canvas img");
+    return image && new DOMMatrix(getComputedStyle(image).transform).a === 1.25;
+  });
+
+  await editTest.click();
+  await chooseStep("Preview the draft");
+  await uiReplay.getByRole("img", { name: "Browser to Server" }).waitFor();
+  await chooseStep("Cancel");
+  await uiReplay.getByRole("img", { name: "Client to Server" }).waitFor();
+  await chooseStep("Refresh the saved view");
+  await uiReplay.getByRole("img", { name: "Browser to Server" }).waitFor();
 
   await sidebar.getByRole("button", { name: "SC-3 SVG: zoom, pan, reset, and narrow layout", exact: true }).click();
   await chooseStep("Pan the view");

@@ -21,8 +21,11 @@ and the related source. The map shows the current source file. Select
 Show on map on an excerpt to highlight that file. The create-and-preview test shows
 the SVG text moving between CreateTermForm and DiagramField. It shows the
 draft, parsed diagram, and mode as they change, then shows DiagramViewer.
-The board marks the source line for each step. Browser screenshots are
-available at the steps where the test captures them. Use
+The PR #14 UI tests show a replay of the form or diagram at each step.
+UI replays use fixed test data and source-derived states. Pointer motion
+shows the effect at the replay's scale. The board marks the source line.
+Browser screenshots are available at the steps where the test captures
+them. Use
 **Preview selected notes** and
 **Send to GitHub** to send the notes that you selected.
 

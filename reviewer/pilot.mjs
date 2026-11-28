@@ -1,9 +1,9 @@
 import { componentForPath } from "./components.mjs";
+import { connectedSvg as fixture, withUiReplay } from "./pilot-ui.mjs";
 
 export const pilotHead = "cfc2d1054619f4bcd0fbb6afa278f2985fa5891c";
 const pilotBase = "849986f9331766618ed9f9fe738ab692217a2cf2";
 const spec = "frontend/e2e/svg-diagram.spec.mjs";
-const fixture = "docs/skill-graph/examples/connected-shapes.svg";
 const format = "frontend/src/diagram/svg-format.ts";
 const field = "frontend/src/diagram/DiagramField.tsx";
 const terms = "frontend/src/terms/Term.tsx";
@@ -36,7 +36,7 @@ const editHandoffs = [
   ["update_term", "Neo4j"],
   ["Term detail query", "DiagramViewer"],
 ];
-const edit = {
+const edit = withUiReplay({
   title: "SC-6 SVG: edit, cancel, and save new source",
   source: source(spec, 214),
   path: editPath,
@@ -83,7 +83,7 @@ const edit = {
     const [from, to] = editHandoffs[index];
     return { ...item, flow: { from, to } };
   }),
-};
+});
 
 function createStep(description, workflow) {
   return {
@@ -151,7 +151,8 @@ function reviewTest(title, file, line, handoffs) {
     component: item.flow.to === "Neo4j" ? "database" : componentForPath(item.code[0].path),
     payload: item.after.split("\n")[0],
   }));
-  return { title, source: source(file, line), path: ["test", ...new Set(steps.map(({ component }) => component))], steps };
+  return withUiReplay({ title, source: source(file, line),
+    path: ["test", ...new Set(steps.map(({ component }) => component))], steps });
 }
 
 const sendCreate = (svg) => handoff("CreateTermForm", "createTerm", "Send the draft to the API",

@@ -542,3 +542,58 @@ dialog::backdrop { background: #1b2b2580; }
 @media (prefers-reduced-motion: reduce) {
   .replay-click, .replay-enter, .replay-diagram, .replay-edge-active::before { animation: none; }
 }
+
+.ui-replay { display: grid; gap: 5px; min-width: 0; }
+.ui-replay-window {
+  --replay-field: #fff;
+  --replay-text: #253831;
+  --replay-accent: #245540;
+  --replay-border: #d4ddd5;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--replay-border);
+  border-radius: 7px;
+  background: var(--replay-field);
+  color: var(--replay-text);
+}
+.ui-replay[data-width="390"] .ui-replay-window { width: min(100%, 390px); }
+.ui-replay[data-theme="dark"] .ui-replay-window {
+  --replay-field: #26322e;
+  --replay-text: #e2ebe3;
+  --replay-accent: #b5dec9;
+  --replay-border: #607268;
+}
+.ui-window-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.ui-window-title span { color: var(--replay-accent); font-size: .78rem; }
+.ui-field { display: grid; gap: 2px; font-size: .84rem; }
+.ui-field > :last-child {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 3px 6px;
+  border: 1px solid var(--replay-border);
+  border-radius: 4px;
+}
+.ui-replay .ui-control {
+  padding: 2px 6px;
+  border-color: var(--replay-border);
+  white-space: nowrap;
+  font-size: .78rem;
+}
+.ui-replay .ui-active { border-color: var(--replay-accent); color: var(--replay-accent); font-weight: 650; }
+.ui-zoom { font-size: .78rem; }
+.ui-result { min-width: 0; overflow: hidden; border: 1px solid var(--replay-border); border-radius: 5px; }
+.ui-result[data-pending="true"] { opacity: .65; }
+.ui-replay .replay-paste { background: var(--replay-field); color: var(--replay-text); max-height: 112px; }
+.ui-message, .ui-error, .ui-shape-details { padding: 5px 8px; font-size: .86rem; }
+.ui-error { color: #8b3531; background: #fbefed; border-radius: 4px; }
+.ui-shape-details { border-inline-start: 3px solid var(--replay-accent); }
+.ui-diagram-canvas, .ui-docker-canvas { display: block; width: 100%; height: 144px; overflow: hidden; }
+.ui-docker-canvas img { display: block; width: 100%; height: 100%; object-fit: contain; transform-origin: top left; }
+.ui-diagram-shape rect { fill: #dbeafe; stroke: #1d4ed8; stroke-width: 2; }
+.ui-diagram-shape[data-shape="server"] rect { fill: #dcfce7; stroke: #15803d; }
+.ui-diagram-shape[data-focused="true"] rect { stroke-width: 5; }
+.ui-diagram-shape text { fill: #172554; font: 18px sans-serif; }
+.ui-diagram-shape[data-shape="server"] text { fill: #14532d; }
+.ui-form-actions { justify-content: end; }

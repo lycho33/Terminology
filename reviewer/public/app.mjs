@@ -1,4 +1,5 @@
 import { architecture, componentForPath, components, mapRegions } from "/components.mjs";
+import { connectedDiagram } from "/diagram-replay.mjs";
 
 const main = document.getElementById("main");
 const walkthroughDialog = document.getElementById("walkthrough-dialog");
@@ -481,7 +482,104 @@ function workflowReplay(workflow, source) {
     stageContent);
 }
 
-function stepFlow(step) {
+const replayDescriptions = {
+  client: "The client sends a request to the server.",
+  server: "The server processes the request and returns a response.",
+};
+
+const replaySourceVariants = {
+  browser: (text) => text.replaceAll("Client", "Browser"),
+  unicode: (text) => "\n  " + text.replace("Client</title>", "Client café &amp; tea</title>") + "\n",
+  padded: (text) => "  " + text + "  ",
+  "missing-marker": (text) => text.replace("url(#arrow)", "url(#missing)"),
+};
+
+function replayCode(frame, source) {
+  const pane = element("pre", { class: "replay-paste", "aria-label": "SVG source",
+    tabindex: "0" }, element("code", {}, frame.value ?? "Loading SVG source…"));
+  if (frame.value === undefined) {
+    source.then(({ workflowFixture }) => {
+      const code = pane.firstChild;
+      code.textContent = workflowFixture === null ? "SVG fixture unavailable."
+        : replaySourceVariants[frame.variant]?.(workflowFixture) ?? workflowFixture;
+      if (frame.variant === "browser" || frame.variant === "missing-marker") {
+        const target = frame.variant === "browser" ? "<title>Browser" : "url(#missing)";
+        const line = code.textContent.split("\n").findIndex((content) => content.includes(target));
+        if (line >= 0) pane.scrollTop = Math.max(0, line - 1) * parseFloat(getComputedStyle(pane).lineHeight);
+      }
+    }).catch(() => { pane.firstChild.textContent = "SVG fixture unavailable."; });
+  }
+  return pane;
+}
+
+function replayCanvas(frame, previous) {
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prior = previous?.mode === "preview" ? previous : undefined;
+  if (!frame.fixture.endsWith("/docker-image.svg")) return connectedDiagram(frame, prior, reducedMotion);
+  const container = element("div", { class: "ui-docker-canvas" });
+  const diagram = element("img", { src: "/api/prs/14/docker-diagram", alt: "Docker image diagram", width: 900, height: 480 });
+  const transform = ({ pan = [0, 0], zoom = 1 } = {}) =>
+    "translate(" + pan[0] + "px, " + pan[1] + "px) scale(" + zoom + ")";
+  const from = transform(prior);
+  const to = transform(frame);
+  diagram.style.transform = to;
+  if (!reducedMotion && from !== to) diagram.animate([{ transform: from }, { transform: to }], 460);
+  container.append(diagram);
+  return container;
+}
+
+function uiFrame(frame, previous, source) {
+  if (!frame) return null;
+  const actionChanged = frame.action && frame !== previous &&
+    (frame.action !== previous?.action || frame.status !== previous?.status);
+  const buttonState = (label, active = false, text = label) => element("span", {
+    class: "ui-control" + (active ? " ui-active" : "") + (actionChanged && frame.action === label ? " replay-click" : ""),
+    title: label === text ? null : label,
+  }, text);
+
+  const view = frame.screen === "saved" ? "Saved term" : frame.screen === "edit" ? "Edit term" : "Create term";
+  const submitting = frame.screen === "edit" ? "Updating…" : "Creating…";
+  const submit = frame.screen === "edit" ? "Update" : "Create";
+  const body = frame.mode === "code" ? replayCode(frame, source) :
+    frame.value === "" ? element("p", { class: "ui-message" }, "No diagram saved yet.") :
+    replayCanvas(frame, previous);
+  const selected = frame.selected;
+  const screenChanged = previous && ["screen", "mode", "variant", "value"].some((key) => frame[key] !== previous[key]);
+  const diagramVisible = frame.mode === "preview" && frame.value !== "";
+  return element("section", { class: "ui-replay", "aria-label": "UI replay", "data-mode": frame.mode,
+    "data-screen": frame.screen, "data-theme": frame.theme, "data-width": frame.width },
+    element("div", { class: "replay-heading" }, element("h5", {}, "UI replay"), tag("From test and source")),
+    element("div", { class: "ui-replay-window" },
+      element("div", { class: "ui-window-title" }, element("strong", {}, view),
+        frame.width ? element("span", {}, frame.width + " px test viewport") : null,
+        frame.action ? element("span", { class: actionChanged ? "replay-enter" : "" }, frame.action) : null),
+      element("div", { class: "ui-field", "data-field": "name" },
+        element("span", {}, "Term name"), element("strong", {}, frame.name)),
+      frame.definition !== undefined ? element("div", { class: "ui-field", "data-field": "definition" },
+        element("span", {}, "Definition"), element("p", {}, frame.definition || "No definition saved yet.")) : null,
+      element("div", { class: "replay-toolbar" },
+        element("strong", {}, "Diagram"), buttonState("Code", frame.mode === "code"),
+        buttonState("Preview", frame.mode === "preview"), buttonState("Copy SVG", false, "⧉"),
+        diagramVisible ? [
+          buttonState("Zoom in", false, "+"), buttonState("Zoom out", false, "−"), buttonState("Reset view", false, "Reset"),
+          element("span", { class: "ui-zoom" }, (frame.zoom ?? 1) * 100 + "%"),
+        ] : null),
+      element("div", { class: "ui-result" + (screenChanged ? " replay-enter" : ""),
+        "data-pending": frame.pending ? "true" : null }, body),
+      diagramVisible && frame.fixture.endsWith("/docker-image.svg") ?
+        element("p", { class: "subhead" }, "Drag anywhere to move the view. Individual shape movement is not available for this SVG.") : null,
+      frame.error ? element("p", { class: "ui-error replay-enter" }, frame.error) : null,
+      frame.status ? element("p", { class: "ui-message replay-enter" }, frame.status) : null,
+      selected ? element("div", { class: "ui-shape-details" + (selected !== previous?.selected ? " replay-enter" : ""),
+        "data-selected": selected },
+        element("strong", {}, selected === "client" ? "Client" : "Server"),
+        element("p", {}, replayDescriptions[selected])) : null,
+      frame.screen !== "saved" ? element("div", { class: "replay-toolbar ui-form-actions" },
+        buttonState(frame.pending ? submitting : submit, true),
+        frame.screen === "edit" ? buttonState("Cancel update") : null) : null));
+}
+
+function stepFlow(step, previous, source) {
   const to = step.flow?.to || components.find(({ id }) => id === step.component)?.label;
   const from = step.flow?.from;
   const nodes = from && from !== to ? [["from", from], ["to", to]] : [["to", to]];
@@ -489,6 +587,7 @@ function stepFlow(step) {
     element("h4", {}, "Component and data flow"),
     to ? componentFlow(nodes, { node: "to", from: from ? "from" : null, token: step.payload }, "Component handoff")
       : element("p", { class: "subhead" }, "Component is unavailable for this step."),
+    uiFrame(step.ui, previous?.ui, source),
     fixtureValues(step, false) ?? element("p", { class: "subhead" }, "Fixture values are unavailable for this step."));
 }
 
@@ -589,7 +688,7 @@ function walkthrough(pr) {
       element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
         sourceLink(step.source, "Step reference")),
       step.detail ? element("p", {}, step.detail) : null,
-      step.workflow ? workflowReplay(step.workflow, source) : stepFlow(step),
+      step.workflow ? workflowReplay(step.workflow, source) : stepFlow(step, test.steps[stepIndex - 1], source),
       implementationCode(source, stepFocus(step)), step.workflow ? fixtureValues(step) : null,
       screenshotEvidence(step, evidence))
     : status("This test has no walkthrough steps.");

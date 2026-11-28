@@ -10,10 +10,12 @@ import { createGitHub, repository } from "./github.mjs";
 import { analyze } from "./analyze.mjs";
 import { captureBrowser, readEvidence } from "./evidence.mjs";
 import { isPilot } from "./pilot.mjs";
+import { dockerSvg } from "./pilot-ui.mjs";
 
 const publicFiles = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/app.mjs", ["app.mjs", "text/javascript; charset=utf-8"]],
+  ["/diagram-replay.mjs", ["diagram-replay.mjs", "text/javascript; charset=utf-8"]],
   ["/components.mjs", ["../components.mjs", "text/javascript; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
 ]);
@@ -177,7 +179,7 @@ export function createReviewer({
     }
     if (route === "/api/session" && request.method === "GET") return json(response, 200, { key });
     if (route === "/api/prs" && request.method === "GET") return json(response, 200, await github.list());
-    const match = /^\/api\/prs\/([1-9][0-9]*)(?:\/(capture|send|images|source)(?:\/([^/]+)\/([^/]+))?)?$/.exec(route);
+    const match = /^\/api\/prs\/([1-9][0-9]*)(?:\/(capture|send|images|source|docker-diagram)(?:\/([^/]+)\/([^/]+))?)?$/.exec(route);
     if (!match) return json(response, 404, { error: "Page unavailable." });
     const number = Number(match[1]);
     const action = match[2];
@@ -207,6 +209,10 @@ export function createReviewer({
 
     const pr = reviews.get(number);
     if (!pr) return json(response, 409, { error: "Open this review first." });
+    if (action === "docker-diagram" && request.method === "GET" && isPilot(pr)) {
+      return write(response, 200, "image/svg+xml; charset=utf-8",
+        await readSource({ repoPath, github, head: pr.head, path: dockerSvg }));
+    }
     const testFor = (id) => pr.behaviors.flatMap((behavior) => behavior.tests).find((test) => test.id === id);
     if (action === "source" && request.method === "GET") {
       if (url.searchParams.get("head") !== pr.head || url.searchParams.get("base") !== pr.base) {
@@ -217,7 +223,8 @@ export function createReviewer({
       const step = Number.isInteger(index) && test?.steps[index];
       if (!step) return json(response, 404, { error: "This walkthrough step is unavailable." });
       const read = (path) => readSource({ repoPath, github, head: pr.head, path });
-      const fixturePath = step.workflow?.fixture;
+      const fixturePath = step.workflow?.fixture ??
+        (step.ui?.mode === "code" && step.ui.value === undefined ? step.ui.fixture : null);
       const [excerpts, workflowFixture] = await Promise.all([
         stepExcerpts(step, read),
         fixturePath && validPath(fixturePath) ? read(fixturePath).catch(() => null) : null,

@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the component and data flow for all mapped tests.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the shape motion and UI changes during test playback.
 
 ## Decisions
 
@@ -135,6 +135,28 @@ passed 15 Chromium tests, three SVG API tests, and one Neo4j integration
 test. The browser cases with named captures supplied screenshots. The
 reviewer's note submission check used a simulated response.
 
+## Animate the UI during test playback
+
+The user asked to see the UI change in the other UI tests, as in the create
+and preview example. All 14 distinct UI cases have a visual frame for each
+step. `reviewer/pilot-ui.mjs` supplies frames. A frame can show the form,
+code, diagram, validation text, selected shape, view transform, or pending
+submit. `reviewer/public/app.mjs` renders the frame in the same step as the
+component handoff and source. `reviewer/public/diagram-replay.mjs` moves the
+shape and its connector endpoint together.
+
+The animation reconstructs UI states from test fixtures and source. Pointer
+movement uses illustrative geometry at the replay's scale. The keyboard step
+uses the 10-unit offset from the test. The fixed name prefixes omit generated
+suffixes. Named browser captures remain available at asserted checkpoints.
+The HTTP and Python tests use data flow without a UI frame.
+
+The browser regression visited all 24 test links. It checked that every
+UI step had a frame. It checked moving connector coordinates, the two
+shape descriptions, Docker zoom, and Browser → Client → Browser across
+edit, cancel, and save. Chromium also confirmed that reduced motion
+skips the diagram animation. The five reviewer tests passed.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -149,7 +171,7 @@ reviewer's note submission check used a simulated response.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, and fixture input and result for every mapped test. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium checked all 24 test links. The isolated browser, SVG API, and Neo4j checks passed. | Updated data flows pending user review. |
+| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the UI animate with the handoff, source line and fixture result in each UI test. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium checked all 24 test links. The isolated browser, SVG API, and Neo4j checks passed. | UI replay pending user review. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -166,6 +188,7 @@ reviewer's note submission check used a simulated response.
 - Isolated PR #14 browser report: /private/tmp/terminology-all-review-tests.nqGD0N/frontend/e2e-artifacts/run-jERedE/results.json
 - SVG API tests: `.venv/bin/python -m unittest discover -s tests -p test_svg_diagram.py`
 - Neo4j integration: `python -m unittest discover -s tests -p test_neo4j_integration.py` from the archived PR head, with `NEO4J_TEST_URI` set to a new disposable loopback container.
+- SC-2 UI replay evidence: /private/tmp/terminology-reviewer-ui-motion/02-shape-motion-replay.png
 - Explanation HTML: /private/tmp/2026-11-27-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

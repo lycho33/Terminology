@@ -106,6 +106,7 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
     readSource: async ({ head, path }) => {
       assert.equal(head, pilotHead);
       if (path.endsWith("connected-shapes.svg")) return "<svg><title>Client</title></svg>";
+      if (path.endsWith("docker-image.svg")) return "<svg><title>Docker image</title></svg>";
       if (!path.endsWith("Term.tsx")) throw new Error("Not in the test checkout");
       return Array.from({ length: 300 }, (_, index) => "source line " + (index + 1)).join("\n");
     },
@@ -121,8 +122,12 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   assert.ok(displayed.behaviors.some(({ title, tests }) => title.includes("cached") && !tests.length));
   const allTests = displayed.behaviors.flatMap((item) => item.tests);
   assert.equal(new Set(allTests.map(({ title }) => title)).size, 19);
+  const uiTests = allTests.filter(({ source, title }) =>
+    source.path.startsWith("frontend/e2e/") && !title.startsWith("real HTTP"));
+  assert.equal(new Set(uiTests.map(({ title }) => title)).size, 14);
   for (const test of allTests) {
     assert.ok(test.steps.length > 1, test.title);
+    assert.ok(test.steps.every((step) => Boolean(step.ui || step.workflow) === uiTests.includes(test)), test.title);
     for (const step of test.steps) {
       assert.ok(step.before && step.after && step.code.length && step.component, step.title);
       assert.ok(step.workflow || (step.flow?.from && step.flow.to), step.title);
@@ -142,6 +147,9 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   assert.equal(previewTest.steps.at(-1).code[0].path, "frontend/src/diagram/DiagramField.tsx");
   const previewSource = await read("/api/prs/14/source/" + previewTest.id + "/5?head=" + pilotHead + "&base=" + base);
   assert.equal(previewSource.workflowFixture, "<svg><title>Client</title></svg>");
+  const dockerImage = await fetch(host + "/api/prs/14/docker-diagram");
+  assert.match(dockerImage.headers.get("content-type"), /^image\/svg\+xml/);
+  assert.equal(await dockerImage.text(), "<svg><title>Docker image</title></svg>");
 
   const stepUrl = "/api/prs/14/source/" + editTest.id + "/0";
   const revision = "?head=" + pilotHead + "&base=" + base;
