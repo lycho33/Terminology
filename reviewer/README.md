@@ -15,9 +15,11 @@ chat. Keep the process running while you use the panel. The panel opens
 with an architecture map. Select a draft or open PR below it to highlight
 the affected areas. Expand a behavior in the sidebar and select a test.
 The board highlights the related components and marks the current step.
-Use Previous, Next, or the step selector to follow the test fixture. The
-board shows the values and any browser screenshots for that step. Expand
-Implementation code to see the source from the reviewed commit. Use
+Use Previous, Next, the step selector, or Play workflow to follow the
+test fixture. The map shows the current source file. Select Show on map
+on an excerpt to highlight that file. The create-and-preview test also
+replays the form, pasted SVG, and preview. The board shows the reviewed
+code and any browser screenshots for the current step. Use
 **Preview selected notes** and
 **Send to GitHub** to send the notes that you selected.
 

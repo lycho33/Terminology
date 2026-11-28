@@ -1,4 +1,4 @@
-import { architecture, mapRegions } from "/components.mjs";
+import { architecture, componentForPath, mapRegions } from "/components.mjs";
 
 const main = document.getElementById("main");
 const walkthroughDialog = document.getElementById("walkthrough-dialog");
@@ -16,6 +16,8 @@ let loadGeneration = 0;
 let selectedBehavior;
 let selectedTest;
 let stepIndex = 0;
+let selectedCode;
+let playbackTimer;
 let notes = [];
 let noteMessage = "";
 let sentLink;
@@ -136,6 +138,8 @@ async function openPull(number) {
   current = null;
   selectedBehavior = null;
   selectedTest = null;
+  selectedCode = null;
+  stopPlayback();
   pendingPull = number || null;
   failedPull = null;
   reviewError = "";
@@ -175,11 +179,28 @@ function intentView(pr) {
       link(item.title, item.url), element("p", {}, item.body || "This source has no description."))));
 }
 
+function currentCode() {
+  const step = selectedTest?.steps[stepIndex];
+  return selectedCode ?? step?.code[0] ?? step?.source;
+}
+
+function codeKey(source) {
+  return source?.path + ":" + source?.line;
+}
+
+function mapCode(source) {
+  const name = source.path.split("/").at(-1);
+  return element("div", { class: "map-code", "data-current-file": source.path },
+    element("span", {}, "Current file"), sourceLink(source, name));
+}
+
 function architectureView(pr) {
   const map = pr?.architecture ?? architecture([]);
   const steps = selectedTest?.steps ?? [];
   const step = steps[stepIndex];
   const active = step?.component;
+  const file = currentCode();
+  const fileComponent = file ? componentForPath(file.path) : null;
   const route = new Set([...(selectedTest?.path ?? []), ...steps.map((item) => item.component).filter(Boolean)]);
   const regionIndex = (id) => mapRegions.findIndex((region) => region.members.includes(id));
   const from = regionIndex(steps[stepIndex - 1]?.component);
@@ -209,11 +230,12 @@ function architectureView(pr) {
       element("p", {}, region.platform)),
     element("div", { class: "map-modules" }, members.map((node) => mapModule(node, node.id === active))),
     isActive ? mapPayload(step) : null,
+    file && region.members.includes(fileComponent) ? mapCode(file) : null,
     pr && !changed ? element("p", { class: "map-unchanged" }, "No direct changes") : null));
   }
   const core = new Set(mapRegions.flatMap((region) => region.members));
   const otherChanges = map.nodes.filter((node) => !core.has(node.id) && !route.has(node.id) && node.files.length);
-  const supporting = map.nodes.filter((node) => !core.has(node.id) && route.has(node.id));
+  const supporting = map.nodes.filter((node) => !core.has(node.id) && (route.has(node.id) || node.id === fileComponent));
   return element("section", { class: "architecture", "aria-labelledby": "architecture-title" },
     element("div", { class: "map-heading" },
       element("h1", { id: "architecture-title" }, "Architecture map"),
@@ -224,7 +246,9 @@ function architectureView(pr) {
     diagram,
     supporting.length ? element("div", { class: "map-support-items", "aria-label": "Supporting test components" },
       supporting.map((node) => element("div", { class: "supporting-node" },
-        mapModule(node, node.id === active), node.id === active ? mapPayload(step) : null))) : null,
+        mapModule(node, node.id === active), node.id === active ? mapPayload(step) : null,
+        node.id === fileComponent ? mapCode(file) : null))) : null,
+    file && !fileComponent ? mapCode(file) : null,
     otherChanges.length ? element("details", { class: "map-support" },
       element("summary", {}, "Other changed areas", element("span", {}, otherChanges.map((node) => node.label).join(" · "))),
       element("div", { class: "map-support-items" }, otherChanges.map((node) => mapModule(node)))) : null);
@@ -242,7 +266,8 @@ function mapModule(node, isActive = false) {
   return element("details", { class: cls + " changed" },
     element("summary", {}, element("span", {}, node.label), tag(count + (count === 1 ? " file" : " files"), "changed-label")),
     element("ul", {}, node.files.map(({ path, revision }) =>
-      element("li", {}, sourceLink({ path, line: 1, revision }, path.split("/").at(-1))))));
+      element("li", { class: currentCode()?.path === path ? "map-file-active" : null },
+        sourceLink({ path, line: 1, revision }, path.split("/").at(-1))))));
 }
 
 function behaviorList(pr) {
@@ -282,6 +307,7 @@ function behaviorList(pr) {
 }
 
 function openBehaviorNote(behavior) {
+  stopPlayback();
   const title = element("h2", { id: "walkthrough-heading", tabindex: "-1" }, "Behavior note");
   walkthroughBody.replaceChildren(element("section", { class: "walkthrough" },
     element("div", { class: "section-heading walkthrough-header" }, title,
@@ -296,6 +322,8 @@ function selectTest(behavior, test) {
   selectedBehavior = behavior;
   selectedTest = test;
   stepIndex = 0;
+  selectedCode = null;
+  stopPlayback();
   captureMessage = "";
   renderSelection();
   if (matchMedia("(max-width: 719px)").matches) {
@@ -303,8 +331,12 @@ function selectTest(behavior, test) {
   }
 }
 
-function renderSelection() {
+function renderMap() {
   document.getElementById("board-map").replaceChildren(architectureView(current));
+}
+
+function renderSelection() {
+  renderMap();
   document.getElementById("board-trace").replaceChildren(selectedTest ? walkthrough(current) : "");
   for (const control of main.querySelectorAll("[data-test]")) {
     control.setAttribute("aria-pressed", String(control.dataset.test === selectedTest?.id));
@@ -334,8 +366,20 @@ function statusBadge(evidence) {
 function excerptBlock(excerpt) {
   const name = excerpt.path.split("/").at(-1);
   const range = name + ":" + excerpt.line + (excerpt.end > excerpt.line ? "–" + excerpt.end : "");
+  const marker = button("Show on map", () => {
+    stopPlayback();
+    selectedCode = excerpt;
+    renderMap();
+    document.getElementById("board-map").scrollIntoView({ block: "nearest" });
+    for (const control of main.querySelectorAll("[data-code-ref]")) {
+      control.setAttribute("aria-pressed", String(control.dataset.codeRef === codeKey(excerpt)));
+    }
+  }, "subtle source-map-button", {
+    "data-code-ref": codeKey(excerpt), "aria-pressed": String(codeKey(currentCode()) === codeKey(excerpt)),
+    "aria-label": "Show " + range + " on map",
+  });
   const heading = element("div", { class: "excerpt-heading" },
-    element("strong", {}, excerpt.label), sourceLink(excerpt, range));
+    element("strong", {}, excerpt.label), element("div", { class: "excerpt-tools" }, sourceLink(excerpt, range), marker));
   if (excerpt.unavailable) {
     return element("figure", { class: "code-excerpt" }, heading,
       element("p", {}, "This excerpt could not be loaded. Open its source link."));
@@ -348,10 +392,7 @@ function excerptBlock(excerpt) {
     element("pre", {}, element("code", {}, lines)));
 }
 
-function implementationCode(pr, test, index) {
-  const body = element("div", { class: "excerpt-list" }, status("Loading source…"));
-  const section = element("section", { class: "implementation-code", "aria-label": "Implementation code" },
-    body);
+function stepSource(pr, test, index) {
   const revision = new URLSearchParams({ head: pr.head, base: pr.base });
   const url = "/api/prs/" + pr.number + "/source/" + test.id + "/" + index + "?" + revision;
   if (!codeRequests.has(url)) {
@@ -361,10 +402,48 @@ function implementationCode(pr, test, index) {
     });
     codeRequests.set(url, request);
   }
-  codeRequests.get(url).then(({ excerpts }) => {
+  return codeRequests.get(url);
+}
+
+function implementationCode(source) {
+  const body = element("div", { class: "excerpt-list" }, status("Loading source…"));
+  source.then(({ excerpts }) => {
     body.replaceChildren(...excerpts.map(excerptBlock));
   }).catch((error) => body.replaceChildren(status(error.message, true)));
-  return section;
+  return element("section", { class: "implementation-code", "aria-label": "Implementation code" },
+    element("h4", {}, "Implementation code"), body);
+}
+
+function workflowReplay(workflow, source) {
+  if (!workflow) return null;
+  const stage = workflow.stage;
+  const stageContent = element("div", { class: "replay-stage", "data-stage": stage });
+  if (stage === "form") {
+    stageContent.append(element("p", { class: "subhead" }, "Paste SVG code here."));
+  } else {
+    source.then(({ workflowFixture }) => {
+      if (!workflowFixture) {
+        stageContent.append(status("The SVG fixture is unavailable for this revision."));
+        return;
+      }
+      if (stage === "paste") {
+        stageContent.append(element("pre", { class: "replay-paste" }, element("code", {}, workflowFixture)));
+        return;
+      }
+      const fixture = new DOMParser().parseFromString(workflowFixture, "image/svg+xml");
+      const labels = [...fixture.querySelectorAll("[data-node=true] > title")].map((node) => node.textContent);
+      stageContent.append(element("div", { class: "replay-diagram", "aria-label": "Diagram preview" },
+        labels.map((label, index) => [index ? element("span", { "aria-hidden": "true" }, "→") : null,
+          element("strong", {}, label)]).flat()));
+    }).catch((error) => stageContent.append(status(error.message, true)));
+  }
+  return element("section", { class: "workflow-replay", "aria-label": "Workflow replay" },
+    element("div", { class: "replay-heading" }, element("h4", {}, "Create term"), tag("Workflow replay")),
+    element("div", { class: "replay-name" }, element("span", {}, "Term name"), element("strong", {}, workflow.termName)),
+    element("div", { class: "replay-toolbar" }, element("strong", {}, "Diagram"),
+      element("span", { class: stage !== "preview" ? "replay-active" : "" }, "Code"),
+      element("span", { class: stage === "preview" ? "replay-active replay-click" : "" }, "Preview")),
+    stageContent);
 }
 
 function fixtureValues(step) {
@@ -378,13 +457,48 @@ function fixtureValues(step) {
       element("pre", {}, element("code", {}, after))) : null);
 }
 
+function stopPlayback() {
+  clearTimeout(playbackTimer);
+  playbackTimer = null;
+  const play = document.getElementById("play-workflow");
+  if (play) play.textContent = "Play workflow";
+}
+
 function selectStep(index) {
+  stopPlayback();
   stepIndex = index;
+  selectedCode = null;
   renderSelection();
   document.getElementById("walkthrough-step").focus({ preventScroll: true });
   if (matchMedia("(min-width: 720px)").matches) {
     document.getElementById("board-map").scrollIntoView({ block: "nearest" });
   }
+}
+
+function schedulePlayback() {
+  playbackTimer = setTimeout(() => {
+    stepIndex++;
+    selectedCode = null;
+    if (stepIndex < selectedTest.steps.length - 1) schedulePlayback();
+    else playbackTimer = null;
+    const restoreFocus = document.activeElement?.id === "play-workflow";
+    renderSelection();
+    if (restoreFocus) document.getElementById("play-workflow").focus({ preventScroll: true });
+  }, 2200);
+}
+
+function togglePlayback() {
+  if (playbackTimer) {
+    stopPlayback();
+    return;
+  }
+  if (stepIndex === selectedTest.steps.length - 1) {
+    stepIndex = 0;
+    selectedCode = null;
+  }
+  schedulePlayback();
+  renderSelection();
+  document.getElementById("play-workflow").focus({ preventScroll: true });
 }
 
 function stepNavigation(test) {
@@ -397,7 +511,8 @@ function stepNavigation(test) {
   return element("div", { class: "step-nav", "aria-label": "Step controls" },
     button("Previous", () => selectStep(stepIndex - 1), "subtle", { disabled: stepIndex === 0 ? "" : null }),
     steps,
-    button("Next", () => selectStep(stepIndex + 1), "subtle", { disabled: stepIndex === test.steps.length - 1 ? "" : null }));
+    button("Next", () => selectStep(stepIndex + 1), "subtle", { disabled: stepIndex === test.steps.length - 1 ? "" : null }),
+    button(playbackTimer ? "Pause" : "Play workflow", togglePlayback, "subtle", { id: "play-workflow" }));
 }
 
 function screenshotEvidence(step, evidence) {
@@ -421,13 +536,13 @@ function walkthrough(pr) {
       element("h2", {}, "Test walkthrough"),
       element("p", { class: "walkthrough-test-title" }, test.title)),
     stepNavigation(test));
+  const source = step ? stepSource(pr, test, stepIndex) : null;
   const checkpoint = step
     ? element("section", { class: "checkpoint" },
       element("div", { class: "checkpoint-heading" }, element("h3", {}, step.title), tag(step.basis, "neutral"),
         sourceLink(step.source, "Step reference")),
-      element("p", {}, step.detail), fixtureValues(step), screenshotEvidence(step, evidence),
-      element("details", { class: "walkthrough-disclosure" }, element("summary", {}, "Implementation code"),
-        implementationCode(pr, test, stepIndex)))
+      element("p", {}, step.detail), workflowReplay(step.workflow, source),
+      implementationCode(source), fixtureValues(step), screenshotEvidence(step, evidence))
     : status("This test has no walkthrough steps.");
   const context = selectedBehavior.title + " / " + test.title + (step ? " / " + step.title : "");
   const tools = element("div", { class: "test-tools" }, sourceLink(test.source), evidence ? statusBadge(evidence) : null,
@@ -435,11 +550,13 @@ function walkthrough(pr) {
       () => capture(pr, test), "subtle", { disabled: capturePending ? "" : null }) : null);
   const note = element("details", { class: "walkthrough-disclosure" },
     element("summary", {}, "Add review note"), addNote(context, step?.source ?? test.source));
+  note.addEventListener("toggle", () => { if (note.open) stopPlayback(); });
   return element("section", { class: "board-walkthrough", "aria-label": "Test walkthrough" }, header,
     captureMessage ? status(captureMessage) : null, checkpoint, tools, note);
 }
 
 async function capture(pr, test) {
+  stopPlayback();
   capturePending = true;
   captureMessage = "";
   renderSelection();

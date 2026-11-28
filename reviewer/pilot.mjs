@@ -70,10 +70,37 @@ const edit = {
   ],
 };
 
+const createPreview = {
+  title: "SC-1 SVG: paste and preview before saving",
+  source: source(spec, 45),
+  path: ["test", "editor"],
+  steps: [
+    {
+      ...step("Open the Create term form", "", "The test opens Create term and fills in the term name. The form starts with an empty diagram.", input, spec, 50, null,
+        trace('Term name = "SVG preview example"', 'newDiagram = ""',
+          excerpt(terms, 80, 91, "Initialize the create form"),
+          excerpt("frontend/e2e/support/helpers.mjs", 39, 44, "Open the form and fill the term name")), "editor", "Empty SVG field"),
+      workflow: { stage: "form", termName: "SVG preview example" },
+    },
+    {
+      ...step("Paste the SVG fixture", "", "The Diagram field passes the pasted source to the form. React stores the full SVG in newDiagram.", inferred, spec, 51, null,
+        trace("Clipboard input = exampleSvg", "newDiagram = exampleSvg",
+          excerpt(terms, 100, 103, "Store the pasted text in React state"),
+          excerpt(field, 381, 390, "Pass the input change to the form")), "editor", "React holds the pasted SVG"),
+      workflow: { stage: "paste", termName: "SVG preview example", fixture },
+    },
+    {
+      ...step("Click Preview", "Client → Server", "Preview switches the field mode and renders the parsed diagram. The test checks both shapes, the arrow, and zero create requests.", preview, spec, 52, "preview-before-save",
+        trace('newDiagram = exampleSvg\nmode = "code"', 'mode = "preview"\nClient → Server\nPOST count = 0',
+          excerpt(field, 347, 354, "Switch the field to Preview"),
+          excerpt(field, 371, 377, "Render the parsed diagram"),
+          excerpt(spec, 52, 60, "Check the shapes and zero POST requests")), "editor", "Preview · Client → Server"),
+      workflow: { stage: "preview", termName: "SVG preview example", fixture },
+    },
+  ],
+};
+
 const browserTraces = new Map([
-  [45, trace("exampleSvg contains Client, Server, and their arrow", "Preview shows both shapes and the arrow\nPOST count = 0",
-    excerpt(field, 371, 390, "Render Preview from the parsed source"),
-    excerpt(spec, 45, 60, "Paste the fixture and verify Preview"))],
   [65, trace("source adds whitespace and Client café &amp; tea", "clipboard.writeText receives the exact source",
     excerpt(actions, 68, 84, "Send the original source to Create"),
     excerpt(field, 321, 329, "Copy the exact value"),
@@ -160,7 +187,7 @@ const behaviors = [
     detail: "Create, edit, and saved views use a common SVG field. Supported source renders in Preview and the saved value retains the original string.",
     sources: [source(field, 291), source(terms, 170), source(format, 105), source("api/models.py", 18)],
     tests: [
-      browser("SC-1 SVG: paste and preview before saving", 45, "preview-before-save", "Client → Server", "The browser shows the two fixture shapes and the arrow before Create."),
+      createPreview,
       save, ordinary,
       apiTest("test_writes_reject_invalid_before_database_and_preserve_valid_source", 47, "The client response preserves valid source and invalid writes do not reach the database."),
     ],

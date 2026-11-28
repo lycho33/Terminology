@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the architecture board with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the file highlights and create-term replay with the user.
 
 ## Decisions
 
@@ -15,7 +15,7 @@
 - Show an architecture map before PR selection. Use architecture-vision.png as the visual reference. Base the map labels and connections on current source.
 - Keep the map in place after PR selection. Highlight the affected components. Show the behaviors and associated tests below the map. Call out missing tests.
 - Put expandable behaviors and tests in the board sidebar. Selecting a test highlights its related components on the architecture map and opens its walkthrough on the same board.
-- Move the fixture label and current-step highlight on the map. Show test inputs, results, implementation code, and UI screenshots on the board.
+- Highlight the file for the current implementation excerpt. Let the reviewer show a different excerpt on the map. Show the test inputs, results, and capture evidence on the same board.
 - Send the notes that the reviewer selects. Use an explicit send action.
 - The approved plan describes the expected workflow. The user did not record a separate system-change prediction.
 
@@ -90,13 +90,26 @@ then returns to the saved view. The Preview, Cancel, and Save steps show
 browser screenshots. The step values remain fixture examples derived from
 the test and source. The map motion does not record runtime calls.
 
+## File highlight and workflow replay
+
+The user asked to see the source file light up on the map while following
+the implementation. A selected step marks its first source file. Each
+excerpt also has a control that marks its own file. Play workflow advances
+the fixture steps and Pause stops playback.
+
+The reviewed SVG creation test opens Create term, fills the name, pastes
+the saved SVG fixture, and clicks Preview. The replay uses the exact fixture
+from the reviewed revision. The board shows the source for the stage below
+the replay. The actual isolated browser test supplies the screen capture
+after Preview and asserts that the app sends no create request.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
 | --- | --- | --- |
 | AC-1 | The Codex panel starts with an architecture map. Select an open PR or draft below it and see the affected areas. | Chromium confirmed that the map loaded while the live PR list was held. PR #14 highlighted Frontend and API. Unit tests check paging and filtering. |
 | AC-2 | Show intent, changed components, behaviors, associated tests, and test gaps. | Chromium opened #14 and showed its description, changed components, test gaps, and the expandable behavior and test sidebar. Unit tests check linked-issue preference. A separate live request drafted a report for #13. |
-| AC-3 | Select a test in the sidebar. Show fixture values and the related path on the board, with code and UI evidence. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. Chromium also checked the code ranges, fixture values and component highlights on the board, and transitions before and after the PATCH and database steps. |
+| AC-3 | Select a test in the sidebar. Show fixture values and the related path on the board, highlight files, and show code and UI evidence. | Chromium passed SC-6 with isolated Neo4j. Preview, Cancel, and Save had screenshots. Chromium also checked the code ranges, fixture values and component highlights on the board, and transitions before and after the PATCH and database steps. |
 | AC-4 | Send the selected notes to the reviewed PR revision. | The browser check intercepted the send and received one selected note. The other note remained local. Server tests verify the request, stale revision response, and duplicate submission ID. Live posting remains unverified. |
 
 ## Ordered user review
@@ -104,7 +117,7 @@ the test and source. The map motion does not record runtime calls.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Expand the behavior and select SC-6. Step through React, PATCH, and Neo4j on the board. | See the component highlight, tested values, and UI sequence Browser, Client, Browser. | 02-test-walkthrough.png and 02-test-walkthrough-narrow.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
+| SC-2 | AC-2, AC-3 | Select the create-and-preview test to play form, paste, and Preview. Select the edit test to follow React, PATCH, and Neo4j. | See file highlights and reviewed source with test data. | 02-create-preview-replay.png and 02-test-walkthrough.png. Isolated test and panel pass. | Earlier layout rejected. Revised layout pending. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -115,7 +128,7 @@ the test and source. The map motion does not record runtime calls.
 - REVIEWER_URL and TERMINOLOGY_REPO set for node reviewer/pilot.browser.mjs
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
-- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-board-verification
+- Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-replay-verification
 - Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 

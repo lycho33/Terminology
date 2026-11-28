@@ -105,6 +105,7 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
     loadAnalysis: async () => pilotBehaviorReport,
     readSource: async ({ head, path }) => {
       assert.equal(head, pilotHead);
+      if (path.endsWith("connected-shapes.svg")) return "<svg><title>Client</title></svg>";
       if (!path.endsWith("Term.tsx")) throw new Error("Not in the test checkout");
       return Array.from({ length: 300 }, (_, index) => "source line " + (index + 1)).join("\n");
     },
@@ -125,6 +126,10 @@ test("pilot walkthrough pins source and evidence and sends one selected note onc
   assert.equal(editTest.steps.find((step) => step.component === "database").payload, "Stored SVG · Browser");
   const previewTest = displayed.behaviors[0].tests[0];
   assert.equal(previewTest.steps[0].component, "editor");
+  assert.deepEqual(previewTest.steps.map((step) => step.workflow.stage), ["form", "paste", "preview"]);
+  assert.equal(previewTest.steps.at(-1).code[0].path, "frontend/src/diagram/DiagramField.tsx");
+  const previewSource = await read("/api/prs/14/source/" + previewTest.id + "/2?head=" + pilotHead + "&base=" + base);
+  assert.equal(previewSource.workflowFixture, "<svg><title>Client</title></svg>");
 
   const stepUrl = "/api/prs/14/source/" + editTest.id + "/0";
   const revision = "?head=" + pilotHead + "&base=" + base;

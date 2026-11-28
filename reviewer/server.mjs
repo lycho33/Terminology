@@ -212,8 +212,13 @@ export function createReviewer({
       const index = Number(match[4]);
       const step = Number.isInteger(index) && test?.steps[index];
       if (!step) return json(response, 404, { error: "This walkthrough step is unavailable." });
-      const excerpts = await stepExcerpts(step, (path) => readSource({ repoPath, github, head: pr.head, path }));
-      return json(response, 200, { excerpts });
+      const read = (path) => readSource({ repoPath, github, head: pr.head, path });
+      const fixturePath = step.workflow?.fixture;
+      const [excerpts, workflowFixture] = await Promise.all([
+        stepExcerpts(step, read),
+        fixturePath && validPath(fixturePath) ? read(fixturePath).catch(() => null) : null,
+      ]);
+      return json(response, 200, { excerpts, workflowFixture });
     }
     if (action === "images" && request.method === "GET") {
       const test = testFor(match[3]);

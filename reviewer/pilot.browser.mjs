@@ -77,7 +77,6 @@ try {
   assert.equal(await page.getByRole("dialog").count(), 0);
   const code = walkthrough.getByRole("region", { name: "Implementation code" });
   const values = walkthrough.getByRole("region", { name: "Test values" });
-  const openCode = () => walkthrough.getByText("Implementation code", { exact: true }).click();
   const chooseStep = async (title) => {
     const picker = walkthrough.getByRole("combobox", { name: "Walkthrough step" });
     const labels = await picker.locator("option").allTextContents();
@@ -91,9 +90,11 @@ try {
   const sidebarBounds = await sidebar.boundingBox();
   const mapBounds = await map.boundingBox();
   assert.ok(sidebarBounds.x + sidebarBounds.width < mapBounds.x);
-  await openCode();
   await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
   assert.match(await values.innerText(), /exampleSvg contains <title>Client<\/title>/);
+  assert.equal(await map.locator("[data-current-file]").getAttribute("data-current-file"), "frontend/src/terms/Term.tsx");
+  await code.getByRole("button", { name: /Show connected-shapes.svg/ }).click();
+  assert.equal(await map.locator("[data-current-file]").getAttribute("data-current-file"), "docs/skill-graph/examples/connected-shapes.svg");
   await walkthrough.getByRole("button", { name: "Next", exact: true }).click();
   assert.ok(await map.getByText("Draft SVG · Browser", { exact: true }).isVisible());
   assert.match(await values.innerText(), /<title>Browser<\/title>/);
@@ -117,7 +118,6 @@ try {
   }
   await chooseStep("Send an update");
   assert.ok(await map.getByText("PATCH carries Browser SVG", { exact: true }).isVisible());
-  await openCode();
   await code.getByText('method: "PATCH"', { exact: false }).waitFor();
   assert.match(await values.innerText(), /JSON body diagram = changed/);
   await chooseStep("Validate the update");
@@ -128,7 +128,6 @@ try {
   assert.ok(await map.getByText("Stored SVG · Browser", { exact: true }).isVisible());
   await page.locator("#board-map").scrollIntoViewIfNeeded();
   await page.screenshot({ path: root + "/02-test-walkthrough.png" });
-  await openCode();
   await code.getByText("t.diagram = CASE WHEN", { exact: false }).waitFor();
   assert.match(await values.innerText(), /Stored SVG contains <title>Browser<\/title>/);
   await chooseStep("Refresh the saved view");
@@ -159,6 +158,28 @@ try {
 
   await sidebar.getByText("Preview and save supported SVG without interaction metadata", { exact: true }).click();
   await sidebar.getByRole("button", { name: "SC-1 SVG: paste and preview before saving", exact: true }).click();
+  const replay = walkthrough.getByRole("region", { name: "Workflow replay" });
+  await replay.getByText("Paste SVG code here.", { exact: true }).waitFor();
+  const selector = await walkthrough.getByRole("combobox", { name: "Walkthrough step" }).boundingBox();
+  assert.ok(selector.width > 115);
+  await code.getByText("Initialize the create form", { exact: true }).waitFor();
+  await walkthrough.getByRole("button", { name: "Play workflow", exact: true }).click();
+  await replay.locator('[data-stage="paste"] pre').waitFor();
+  assert.match(await replay.locator("pre").textContent(), /data-diagram-version="1"/);
+  await replay.getByText("Server", { exact: true }).waitFor();
+  assert.ok(await replay.getByText("Client", { exact: true }).isVisible());
+  await code.getByText('onClick={() => setMode("preview")}', { exact: false }).waitFor();
+  assert.equal(await map.locator("[data-current-file]").getAttribute("data-current-file"), "frontend/src/diagram/DiagramField.tsx");
+  assert.match(await values.innerText(), /POST count = 0/);
+  await page.locator("#board-map").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: root + "/02-create-preview-replay.png", fullPage: true });
+
+  const createCapture = page.waitForResponse((response) => response.url().endsWith("/api/prs/14/capture"), { timeout: 180_000 });
+  await walkthrough.getByRole("button", { name: "Run browser test", exact: true }).click();
+  const createResult = await (await createCapture).json();
+  assert.equal(createResult.result, "passed");
+  assert.ok(createResult.images["preview-before-save"]);
+  await walkthrough.getByRole("img", { name: /^Click Preview from the Chromium browser test$/ }).waitFor();
   assert.equal(await map.locator(".region-on-route").count(), 1);
   assert.equal(await map.locator(".region-active").getAttribute("data-region"), "frontend");
   assert.equal(await editTest.getAttribute("aria-pressed"), "false");
@@ -168,7 +189,6 @@ try {
   await editTest.click();
   await walkthrough.waitFor();
   assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));
-  await openCode();
   await code.getByText("const [newDiagram, setNewDiagram]", { exact: false }).waitFor();
   const excerptsFit = await code.locator("pre").evaluateAll((items) =>
     items.every((item) => item.scrollWidth <= item.clientWidth));
