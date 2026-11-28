@@ -7,7 +7,7 @@
 - Pilot: [PR #14](https://github.com/lycho33/Terminology/pull/14) at cfc2d1054619f4bcd0fbb6afa278f2985fa5891c.
 - Delivery: [Draft PR #15](https://github.com/lycho33/Terminology/pull/15).
 - Initial implementation commit: 9500584f82832344eb768e91ebfeb64fd259b4.
-- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review the component handoffs in the create-term replay with the user.
+- Current role: UI Verifier. Current scenario: SC-2 at the user's request. Next action: review scroll position when Next advances the SVG replay.
 
 ## Decisions
 
@@ -109,6 +109,13 @@ source line. The intermediate frames come from the source and fixture.
 The isolated browser test supplies the screen capture after Preview and
 asserts that the app sends no create request.
 
+The user reported that Next moved the view to the architecture map.
+`reviewer/public/app.mjs:502` updates the map and the step, then focuses
+the step selector with scroll prevented. The handler no longer scrolls to
+the map. `reviewer/pilot.browser.mjs:165` checks exact scroll coordinates
+before Next and after the excerpt loads at 853 px and 390 px widths.
+Both passed. A direct click in Codex kept the viewport at 545 px.
+
 ## Acceptance evidence
 
 | ID | Expected result | Result |
@@ -123,7 +130,7 @@ asserts that the app sends no create request.
 | ID | Criteria | Setup and actions | Expected result | Automated evidence | User review |
 | --- | --- | --- | --- | --- | --- |
 | SC-1 | AC-1 | Open the panel in Codex. Select draft PR #14 below the map. | Architecture appears first. The map highlights the areas changed by PR #14. | 01-architecture-map.png and 01-changed-file-names.png. Live GitHub and Chromium pass. | Earlier screen rejected. Revised screen pending. |
-| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, fixture value, mode, and UI change together. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium passed the replay, source highlights, and isolated capture. | User requested component handoffs. Revised replay pending review. |
+| SC-2 | AC-2, AC-3 | Select the create-and-preview test and play the SVG handoffs. Select the edit test to follow React, PATCH, and Neo4j. | See the component, source line, fixture value, mode, and UI change together. | 02-create-preview-replay.png and 02-test-walkthrough.png. Chromium passed the replay, source highlights, isolated capture, and the Next scroll check. | User reported a jump on Next. Scroll correction pending user review. |
 | SC-3 | AC-4 | Save two notes. Select one, view the preview, and send it. | The selected note appears in the preview and submission. The other stays local. | 03-preview-selected-notes.png and simulated-submission.json. Simulated pass. | Pending |
 
 ## Commands and artifacts
@@ -135,7 +142,8 @@ asserts that the app sends no create request.
 - Pilot run: /private/tmp/terminology-pr14-pilot.Mnmvk4/frontend/e2e-artifacts/run-Y0M54W
 - Browser evidence for SC-1 file labels: /private/tmp/terminology-reviewer-filenames-verification
 - Browser evidence for the SC-2 code walkthrough: /private/tmp/terminology-reviewer-component-replay-verification
-- Explanation HTML: /private/tmp/2026-11-26-explanation-visual-pr-reviewer.html
+- SC-2 scroll evidence: /private/tmp/terminology-reviewer-scroll-verification/02-before-next.png and 02-after-next.png
+- Explanation HTML: /private/tmp/2026-11-27-explanation-visual-pr-reviewer.html
 - The HTML validator passed. Headless Chromium rendered the report and exercised all five quiz interactions.
 
 The browser check uses real GitHub reads. It simulates submission. Live

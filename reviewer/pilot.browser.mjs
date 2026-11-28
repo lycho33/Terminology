@@ -162,7 +162,22 @@ try {
   await replay.getByText("Paste SVG code here.", { exact: true }).waitFor();
   const selector = await walkthrough.getByRole("combobox", { name: "Walkthrough step" }).boundingBox();
   assert.ok(selector.width > 115);
-  await code.getByText("Initialize the create form", { exact: true }).waitFor();
+  const verifyNextKeepsViewport = async (captureViewport = false) => {
+    await chooseStep("Open the Create term form");
+    await code.getByText("Initialize the create form", { exact: true }).waitFor();
+    const next = walkthrough.getByRole("button", { name: "Next", exact: true });
+    await next.evaluate((button) => window.scrollBy(0, button.getBoundingClientRect().top - 96));
+    const offset = () => page.evaluate(() => [window.scrollX, window.scrollY]);
+    const before = await offset();
+    assert.ok(before[1] > 0);
+    if (captureViewport) await page.screenshot({ path: root + "/02-before-next.png" });
+    await next.click();
+    await code.getByText("Forward the textarea value", { exact: true }).waitFor();
+    assert.deepEqual(await offset(), before, "Next must keep the viewport coordinates");
+    if (captureViewport) await page.screenshot({ path: root + "/02-after-next.png", animations: "disabled" });
+  };
+  await verifyNextKeepsViewport(true);
+  await chooseStep("Open the Create term form");
   await walkthrough.getByRole("button", { name: "Play workflow", exact: true }).click();
   const activeReplayNode = replay.locator('[aria-current="step"]');
   const replayState = replay.locator(".replay-state");
@@ -217,6 +232,7 @@ try {
   assert.ok(await replay.evaluate((node) => node.scrollWidth <= node.clientWidth));
   await chooseStep("Run handleDiagramChange");
   assert.ok(await replay.evaluate((node) => node.scrollWidth <= node.clientWidth));
+  await verifyNextKeepsViewport();
   await editTest.click();
   await walkthrough.waitFor();
   assert.ok(await walkthrough.evaluate((item) => item.scrollWidth <= item.clientWidth));

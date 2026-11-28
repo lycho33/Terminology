@@ -505,9 +505,6 @@ function selectStep(index) {
   selectedCode = null;
   renderSelection();
   document.getElementById("walkthrough-step").focus({ preventScroll: true });
-  if (matchMedia("(min-width: 720px)").matches) {
-    document.getElementById("board-map").scrollIntoView({ block: "nearest" });
-  }
 }
 
 function schedulePlayback() {
